@@ -38,6 +38,7 @@ import io.github.meko123456.habitstreaks.data.Habit
 @Composable
 fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.Factory)) {
     val items by viewModel.items.collectAsState()
+    val dayCounts by viewModel.dayCounts.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Habit?>(null) }
 
@@ -57,6 +58,9 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item(key = "heatmap") {
+                    ActivityCard(dayCounts)
+                }
                 items(items, key = { it.habit.id }) { item ->
                     HabitCard(
                         item = item,
@@ -94,6 +98,25 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 editing = null
             },
         )
+    }
+}
+
+@Composable
+private fun ActivityCard(dayCounts: Map<Long, Int>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Activity", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Last 20 weeks, all habits",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ContributionHeatmap(
+                counts = dayCounts,
+                endDay = java.time.LocalDate.now().toEpochDay(),
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
     }
 }
 

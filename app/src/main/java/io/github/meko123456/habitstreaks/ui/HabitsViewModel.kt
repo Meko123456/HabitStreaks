@@ -15,6 +15,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -41,6 +42,12 @@ class HabitsViewModel(private val dao: HabitDao) : ViewModel() {
                 )
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Completions per day across all habits, for the activity heatmap. */
+    val dayCounts: StateFlow<Map<Long, Int>> =
+        dao.observeAllCompletions()
+            .map { completions -> completions.groupingBy { it.epochDay }.eachCount() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun createHabit(name: String, emoji: String) {
         val trimmed = name.trim()
