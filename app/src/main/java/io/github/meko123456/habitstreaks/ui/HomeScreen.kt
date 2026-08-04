@@ -121,6 +121,8 @@ private fun HabitCard(
             IconButton(onClick = onEdit) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit ${item.habit.name}")
             }
+            Spacer(Modifier.width(4.dp))
+            TodayCheck(done = item.doneToday, onClick = onToggleToday)
         }
     }
 }
