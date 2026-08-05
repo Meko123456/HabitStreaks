@@ -26,6 +26,14 @@ interface HabitDao {
     @Query("SELECT * FROM completions")
     fun observeAllCompletions(): Flow<List<Completion>>
 
+    // One-shot variants for non-reactive callers (e.g. the Glance widget).
+
+    @Query("SELECT * FROM habits WHERE archived = 0 ORDER BY createdAtEpochDay, id")
+    suspend fun habitsOnce(): List<Habit>
+
+    @Query("SELECT habitId FROM completions WHERE epochDay = :epochDay")
+    suspend fun completedHabitIdsOn(epochDay: Long): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addCompletion(completion: Completion)
 
