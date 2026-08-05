@@ -70,6 +70,11 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                (github as? GithubState.Ready)?.let { ready ->
+                    item(key = "github") {
+                        GithubCard(ready.contributions)
+                    }
+                }
                 item(key = "heatmap") {
                     ActivityCard(dayCounts)
                 }
@@ -119,6 +124,25 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 editing = null
             },
         )
+    }
+}
+
+@Composable
+private fun GithubCard(contributions: io.github.meko123456.habitstreaks.data.github.GithubContributions) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("GitHub · @${contributions.login}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "${contributions.total} contributions in the last year",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ContributionHeatmap(
+                counts = contributions.countsByDay,
+                endDay = java.time.LocalDate.now().toEpochDay(),
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
     }
 }
 
