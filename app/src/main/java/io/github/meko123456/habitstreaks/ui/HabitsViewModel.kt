@@ -10,14 +10,26 @@ import io.github.meko123456.habitstreaks.data.Completion
 import io.github.meko123456.habitstreaks.data.Habit
 import io.github.meko123456.habitstreaks.data.HabitDao
 import io.github.meko123456.habitstreaks.data.HabitDatabase
+import io.github.meko123456.habitstreaks.data.github.GithubClient
+import io.github.meko123456.habitstreaks.data.github.GithubContributions
+import io.github.meko123456.habitstreaks.data.github.TokenStore
 import io.github.meko123456.habitstreaks.domain.StreakEngine
 import java.time.LocalDate
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+sealed interface GithubState {
+    data object NotConnected : GithubState
+    data object Loading : GithubState
+    data class Error(val message: String) : GithubState
+    data class Ready(val contributions: GithubContributions) : GithubState
+}
 
 data class HabitItem(
     val habit: Habit,
@@ -26,7 +38,46 @@ data class HabitItem(
     val longestStreak: Int,
 )
 
-class HabitsViewModel(private val dao: HabitDao) : ViewModel() {
+class HabitsViewModel(
+    private val dao: HabitDao,
+    private val tokenStore: TokenStore? = null,
+    private val githubClient: GithubClient? = null,
+) : ViewModel() {
+
+    private val _github = MutableStateFlow<GithubState>(GithubState.NotConnected)
+    val github: StateFlow<GithubState> = _github.asStateFlow()
+
+    init {
+        refreshGithub()
+    }
+
+    fun connectGithub(token: String) {
+        val trimmed = token.trim()
+        if (trimmed.isEmpty()) return
+        tokenStore?.save(trimmed)
+        refreshGithub()
+    }
+
+    fun disconnectGithub() {
+        tokenStore?.clear()
+        _github.value = GithubState.NotConnected
+    }
+
+    fun refreshGithub() {
+        val store = tokenStore ?: return
+        val client = githubClient ?: return
+        val token = store.load() ?: run {
+            _github.value = GithubState.NotConnected
+            return
+        }
+        _github.value = GithubState.Loading
+        viewModelScope.launch {
+            _github.value = client.fetchContributions(token).fold(
+                onSuccess = { GithubState.Ready(it) },
+                onFailure = { GithubState.Error(it.message ?: "Unknown error") },
+            )
+        }
+    }
 
     val items: StateFlow<List<HabitItem>> =
         combine(dao.observeHabits(), dao.observeAllCompletions()) { habits, completions ->
@@ -91,7 +142,11 @@ class HabitsViewModel(private val dao: HabitDao) : ViewModel() {
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = checkNotNull(extras[APPLICATION_KEY]) as Application
                 @Suppress("UNCHECKED_CAST")
-                return HabitsViewModel(HabitDatabase.get(app).habitDao()) as T
+                return HabitsViewModel(
+                    dao = HabitDatabase.get(app).habitDao(),
+                    tokenStore = TokenStore(app),
+                    githubClient = GithubClient(),
+                ) as T
             }
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -39,11 +40,22 @@ import io.github.meko123456.habitstreaks.data.Habit
 fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.Factory)) {
     val items by viewModel.items.collectAsState()
     val dayCounts by viewModel.dayCounts.collectAsState()
+    val github by viewModel.github.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Habit?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("HabitStreaks") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("HabitStreaks") },
+                actions = {
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "GitHub settings")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreate = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add habit")
@@ -70,6 +82,15 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 }
             }
         }
+    }
+
+    if (showSettings) {
+        GithubSettingsDialog(
+            state = github,
+            onConnect = { viewModel.connectGithub(it) },
+            onDisconnect = { viewModel.disconnectGithub() },
+            onDismiss = { showSettings = false },
+        )
     }
 
     if (showCreate) {
