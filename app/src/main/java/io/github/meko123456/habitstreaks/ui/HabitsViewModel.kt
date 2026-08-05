@@ -14,6 +14,8 @@ import io.github.meko123456.habitstreaks.data.github.GithubClient
 import io.github.meko123456.habitstreaks.data.github.GithubContributions
 import io.github.meko123456.habitstreaks.data.github.TokenStore
 import io.github.meko123456.habitstreaks.domain.StreakEngine
+import io.github.meko123456.habitstreaks.widget.HabitsWidget
+import androidx.glance.appwidget.updateAll
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,7 +44,13 @@ class HabitsViewModel(
     private val dao: HabitDao,
     private val tokenStore: TokenStore? = null,
     private val githubClient: GithubClient? = null,
+    private val app: Application? = null,
 ) : ViewModel() {
+
+    /** Keep home-screen widgets in sync after any data mutation. */
+    private suspend fun syncWidget() {
+        app?.let { HabitsWidget().updateAll(it) }
+    }
 
     private val _github = MutableStateFlow<GithubState>(GithubState.NotConnected)
     val github: StateFlow<GithubState> = _github.asStateFlow()
@@ -111,6 +119,7 @@ class HabitsViewModel(
                     createdAtEpochDay = LocalDate.now().toEpochDay(),
                 ),
             )
+            syncWidget()
         }
     }
 
@@ -119,11 +128,15 @@ class HabitsViewModel(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             dao.update(habit.copy(name = trimmed, emoji = emoji.ifBlank { habit.emoji }))
+            syncWidget()
         }
     }
 
     fun deleteHabit(habit: Habit) {
-        viewModelScope.launch { dao.delete(habit) }
+        viewModelScope.launch {
+            dao.delete(habit)
+            syncWidget()
+        }
     }
 
     fun toggleToday(item: HabitItem) {
@@ -134,6 +147,7 @@ class HabitsViewModel(
             } else {
                 dao.addCompletion(Completion(item.habit.id, today))
             }
+            syncWidget()
         }
     }
 
@@ -146,6 +160,7 @@ class HabitsViewModel(
                     dao = HabitDatabase.get(app).habitDao(),
                     tokenStore = TokenStore(app),
                     githubClient = GithubClient(),
+                    app = app,
                 ) as T
             }
         }
