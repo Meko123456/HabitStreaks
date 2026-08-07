@@ -32,6 +32,7 @@ import androidx.glance.text.TextStyle
 import io.github.meko123456.habitstreaks.MainActivity
 import io.github.meko123456.habitstreaks.data.github.GithubClient
 import io.github.meko123456.habitstreaks.data.github.TokenStore
+import io.github.meko123456.heatmap.HeatmapBitmap
 import java.time.LocalDate
 
 class GithubWidgetReceiver : GlanceAppWidgetReceiver() {

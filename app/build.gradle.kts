@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
 
+    implementation(libs.heatmap.compose)
     implementation(libs.work.runtime.ktx)
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
