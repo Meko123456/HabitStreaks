@@ -33,6 +33,9 @@ sealed interface GithubState {
     data class Ready(val contributions: GithubContributions) : GithubState
 }
 
+/** One habit's state on a specific day, for the day-detail sheet. */
+data class DayHabit(val habit: Habit, val done: Boolean)
+
 data class HabitItem(
     val habit: Habit,
     val doneToday: Boolean,
@@ -140,16 +143,31 @@ class HabitsViewModel(
     }
 
     fun toggleToday(item: HabitItem) {
-        val today = LocalDate.now().toEpochDay()
+        toggleOn(item.habit, LocalDate.now().toEpochDay(), done = item.doneToday)
+    }
+
+    /**
+     * Marks or unmarks [habit] for any past day — how a forgotten check-off gets fixed from the
+     * "pick a day" sheet. Future days are refused so a streak can never be pre-filled.
+     */
+    fun toggleOn(habit: Habit, epochDay: Long, done: Boolean) {
+        if (epochDay > LocalDate.now().toEpochDay()) return
         viewModelScope.launch {
-            if (item.doneToday) {
-                dao.removeCompletion(item.habit.id, today)
+            if (done) {
+                dao.removeCompletion(habit.id, epochDay)
             } else {
-                dao.addCompletion(Completion(item.habit.id, today))
+                dao.addCompletion(Completion(habit.id, epochDay))
             }
             syncWidget()
         }
     }
+
+    /** Which habits were done on [epochDay]; reactive, so the day sheet updates as you toggle. */
+    fun observeDay(epochDay: Long): kotlinx.coroutines.flow.Flow<List<DayHabit>> =
+        combine(dao.observeHabits(), dao.observeAllCompletions()) { habits, completions ->
+            val done = completions.filter { it.epochDay == epochDay }.map { it.habitId }.toSet()
+            habits.map { DayHabit(habit = it, done = it.id in done) }
+        }
 
     companion object {
         val Factory = object : ViewModelProvider.Factory {

@@ -22,12 +22,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.meko123456.habitstreaks.data.Habit
 import io.github.meko123456.heatmap.ContributionHeatmap
+import io.github.meko123456.heatmap.HeatmapLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +48,10 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     var showCreate by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Habit?>(null) }
+    val today = remember { java.time.LocalDate.now().toEpochDay() }
+    var habitDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var githubDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pickingFor by rememberSaveable { mutableStateOf<String?>(null) } // "habits" | "github"
 
     Scaffold(
         topBar = {
@@ -73,11 +80,21 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
             ) {
                 (github as? GithubState.Ready)?.let { ready ->
                     item(key = "github") {
-                        GithubCard(ready.contributions)
+                        GithubCard(
+                            contributions = ready.contributions,
+                            today = today,
+                            onDayClick = { githubDay = it },
+                            onPickDay = { pickingFor = "github" },
+                        )
                     }
                 }
                 item(key = "heatmap") {
-                    ActivityCard(dayCounts)
+                    ActivityCard(
+                        dayCounts = dayCounts,
+                        today = today,
+                        onDayClick = { habitDay = it },
+                        onPickDay = { pickingFor = "habits" },
+                    )
                 }
                 items(items, key = { it.habit.id }) { item ->
                     HabitCard(
@@ -88,6 +105,30 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 }
             }
         }
+    }
+
+    habitDay?.let { day ->
+        HabitDaySheet(epochDay = day, viewModel = viewModel, onDismiss = { habitDay = null })
+    }
+    githubDay?.let { day ->
+        (github as? GithubState.Ready)?.contributions?.let { c ->
+            GithubDaySheet(
+                epochDay = day,
+                login = c.login,
+                count = c.countsByDay[day] ?: 0,
+                onDismiss = { githubDay = null },
+            )
+        }
+    }
+    pickingFor?.let { target ->
+        PickDayDialog(
+            today = today,
+            onPick = { day ->
+                if (target == "github") githubDay = day else habitDay = day
+                pickingFor = null
+            },
+            onDismiss = { pickingFor = null },
+        )
     }
 
     if (showSettings) {
@@ -128,41 +169,92 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     }
 }
 
+private const val HEATMAP_WEEKS = 20
+
 @Composable
-private fun GithubCard(contributions: io.github.meko123456.habitstreaks.data.github.GithubContributions) {
+private fun GithubCard(
+    contributions: io.github.meko123456.habitstreaks.data.github.GithubContributions,
+    today: Long,
+    onDayClick: (Long) -> Unit,
+    onPickDay: () -> Unit,
+) {
+    val activeDays = remember(contributions, today) {
+        HeatmapLayout.daysWithin(contributions.countsByDay.keys, today, HEATMAP_WEEKS)
+    }
+    val shownDays = remember(today) { HeatmapLayout.daysShown(today, HEATMAP_WEEKS) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("GitHub · @${contributions.login}", style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "${contributions.total} contributions in the last year",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            CardHeader(
+                title = "GitHub · @${contributions.login}",
+                subtitle = "${contributions.total} contributions in the last year",
+                onPickDay = onPickDay,
             )
             ContributionHeatmap(
                 counts = contributions.countsByDay,
-                endDay = java.time.LocalDate.now().toEpochDay(),
+                endDay = today,
+                weeks = HEATMAP_WEEKS,
                 modifier = Modifier.padding(top = 12.dp),
+                onDayClick = onDayClick,
+                contentDescription = "GitHub contributions: active on $activeDays of the last $shownDays days. " +
+                    "Use Pick a day to open a date.",
+            )
+            Text(
+                text = "Tap a day for details",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
     }
 }
 
 @Composable
-private fun ActivityCard(dayCounts: Map<Long, Int>) {
+private fun ActivityCard(
+    dayCounts: Map<Long, Int>,
+    today: Long,
+    onDayClick: (Long) -> Unit,
+    onPickDay: () -> Unit,
+) {
+    val activeDays = remember(dayCounts, today) { HeatmapLayout.daysWithin(dayCounts.keys, today, HEATMAP_WEEKS) }
+    val shownDays = remember(today) { HeatmapLayout.daysShown(today, HEATMAP_WEEKS) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("Activity", style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "Last 20 weeks, all habits",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            CardHeader(
+                title = "Activity",
+                subtitle = "Last $HEATMAP_WEEKS weeks, all habits",
+                onPickDay = onPickDay,
             )
             ContributionHeatmap(
                 counts = dayCounts,
-                endDay = java.time.LocalDate.now().toEpochDay(),
+                endDay = today,
+                weeks = HEATMAP_WEEKS,
                 modifier = Modifier.padding(top = 12.dp),
+                onDayClick = onDayClick,
+                contentDescription = "Habit activity: $activeDays of the last $shownDays days had a check-off. " +
+                    "Use Pick a day to open a date.",
+            )
+            Text(
+                text = "Tap a day to see or fix its check-offs",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun CardHeader(title: String, subtitle: String, onPickDay: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onPickDay) { Text("Pick a day") }
     }
 }
 
