@@ -17,6 +17,7 @@ the coding habit, it doesn't ask you to self-report: it fetches your actual squa
 
 ## Features
 
+- 📅 **Pick a day** — tap any heatmap cell (or use the date picker) to open that day: see and fix a habit's check-offs after the fact, or see that day's GitHub contribution count with a link to github.com. Tap support comes from `heatmap` 0.2.0.
 - ✅ Create habits with emoji, check them off daily, edit or delete any time
 - 🔥 Streak tracking with an until-midnight grace rule (today unchecked ≠ broken streak)
 - 🟩 Contribution-style activity heatmap drawn on a single Compose Canvas
