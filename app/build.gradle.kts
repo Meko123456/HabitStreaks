@@ -20,6 +20,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            // Code shrinking alone leaves every drawable, string and style the shrunk code no
+            // longer references sitting in the APK.
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
