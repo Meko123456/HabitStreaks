@@ -25,6 +25,13 @@ jobs:
       - name: Build, lint and unit tests
         run: ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --stacktrace
 
+      # Debug builds never run R8, so the shrinker was configured here and never once executed.
+      # Without this step, the first time code shrinking runs is release day, which is the worst
+      # possible day to learn it removed something the app needed. lintVitalRelease is the
+      # release-blocking subset of lint, which debug lint does not cover either.
+      - name: Release build (R8 + release-blocking lint)
+        run: ./gradlew :app:assembleRelease :app:lintVitalRelease --stacktrace
+
       - name: Upload lint report
         if: failure()
         uses: actions/upload-artifact@v7
