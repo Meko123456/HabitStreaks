@@ -13,15 +13,20 @@ import io.github.meko123456.habitstreaks.data.HabitDatabase
 import io.github.meko123456.habitstreaks.data.github.GithubClient
 import io.github.meko123456.habitstreaks.data.github.GithubContributions
 import io.github.meko123456.habitstreaks.data.github.TokenStore
+import io.github.meko123456.habitstreaks.domain.DayClock
 import io.github.meko123456.habitstreaks.domain.StreakEngine
 import io.github.meko123456.habitstreaks.widget.HabitsWidget
 import androidx.glance.appwidget.updateAll
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -90,9 +95,28 @@ class HabitsViewModel(
         }
     }
 
+    /**
+     * Today, re-emitted when the day actually rolls over rather than when the database happens to
+     * change. Everything that means "today" reads this, so the list, the heatmap and the check-off
+     * button can never disagree about which day they are on.
+     */
+    val today: StateFlow<Long> =
+        flow {
+            while (true) {
+                val now = ZonedDateTime.now()
+                emit(DayClock.epochDay(now))
+                delay(DayClock.millisUntilNextMidnight(now))
+            }
+        }
+            .distinctUntilChanged()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                LocalDate.now().toEpochDay(),
+            )
+
     val items: StateFlow<List<HabitItem>> =
-        combine(dao.observeHabits(), dao.observeAllCompletions()) { habits, completions ->
-            val today = LocalDate.now().toEpochDay()
+        combine(dao.observeHabits(), dao.observeAllCompletions(), today) { habits, completions, today ->
             val byHabit = completions.groupBy({ it.habitId }, { it.epochDay })
             habits.map { habit ->
                 val days = byHabit[habit.id].orEmpty().toSet()
@@ -143,7 +167,9 @@ class HabitsViewModel(
     }
 
     fun toggleToday(item: HabitItem) {
-        toggleOn(item.habit, LocalDate.now().toEpochDay(), done = item.doneToday)
+        // today.value, not a fresh LocalDate.now(): this has to be the same day the list was built
+        // from, or a tap right after midnight tries to delete a row that was never written.
+        toggleOn(item.habit, today.value, done = item.doneToday)
     }
 
     /**
@@ -151,7 +177,7 @@ class HabitsViewModel(
      * "pick a day" sheet. Future days are refused so a streak can never be pre-filled.
      */
     fun toggleOn(habit: Habit, epochDay: Long, done: Boolean) {
-        if (epochDay > LocalDate.now().toEpochDay()) return
+        if (epochDay > today.value) return
         viewModelScope.launch {
             if (done) {
                 dao.removeCompletion(habit.id, epochDay)

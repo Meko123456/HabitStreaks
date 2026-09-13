@@ -48,7 +48,9 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     var showCreate by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Habit?>(null) }
-    val today = remember { java.time.LocalDate.now().toEpochDay() }
+    // From the ViewModel, not remember { now() }: frozen at first composition, this made an app left
+    // open overnight keep drawing yesterday's heatmap and yesterday's check marks.
+    val today by viewModel.today.collectAsState()
     var habitDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var githubDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var pickingFor by rememberSaveable { mutableStateOf<String?>(null) } // "habits" | "github"

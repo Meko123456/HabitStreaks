@@ -45,8 +45,9 @@ widget/     Glance widgets + shared HeatmapBitmap renderer
 reminders/  WorkManager daily reminder worker
 ```
 
-The streak and heatmap math is deliberately isolated from Android — pure Kotlin
-functions over `LocalDate.toEpochDay()` sets, exhaustively unit-tested (24 tests).
+The streak math and the day arithmetic are deliberately isolated from Android — pure Kotlin
+functions over `LocalDate.toEpochDay()` sets and `ZonedDateTime`, unit-tested without a device
+(19 tests in `domain/`, 21 in the repo).
 
 ## Connecting your GitHub account
 
