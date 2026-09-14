@@ -38,11 +38,15 @@ internal object WidgetHeatmap {
     fun specFor(widthPx: Int, heightPx: Int): HeatmapSpec? {
         if (widthPx <= 0 || heightPx <= 0) return null
 
-        val step = heightPx.toFloat() / HeatmapLayout.ROWS
-        if (step < MIN_STEP_PX) return null
+        val idealStep = heightPx.toFloat() / HeatmapLayout.ROWS
+        if (idealStep < MIN_STEP_PX) return null
 
-        val cellPx = max(1, (step * HeatmapLayout.CELL_FRACTION).roundToInt())
-        val gapPx = max(1, step.roundToInt() - cellPx)
+        // Gap first, cell second. Rounding both independently and hoping they add up to the box
+        // leaves a stripe of dead space - about 19px of 654 on a 4x2 widget, which is a visibly
+        // short grid. Fixing the gap and then solving the cell for the height that is actually
+        // there keeps the shortfall under one row.
+        val gapPx = max(1, (idealStep * (1f - HeatmapLayout.CELL_FRACTION)).roundToInt())
+        val cellPx = max(1, (heightPx + gapPx) / HeatmapLayout.ROWS - gapPx)
         val weeks = min(MAX_WEEKS, max(1, (widthPx + gapPx) / (cellPx + gapPx)))
 
         return HeatmapSpec(cellPx = cellPx, gapPx = gapPx, weeks = weeks)

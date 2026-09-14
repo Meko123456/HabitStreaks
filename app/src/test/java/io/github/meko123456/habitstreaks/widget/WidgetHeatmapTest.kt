@@ -25,7 +25,7 @@ class WidgetHeatmapTest {
         val spec = WidgetHeatmap.specFor(phoneWidth, phoneHeight)!!
         assertTrue(
             "seven rows came to ${spec.heightPx}px of an available ${phoneHeight}px",
-            spec.heightPx >= phoneHeight - HeatmapLayout.ROWS && spec.heightPx <= phoneHeight,
+            spec.heightPx >= phoneHeight - spec.stepPx && spec.heightPx <= phoneHeight,
         )
     }
 
@@ -99,5 +99,33 @@ class WidgetHeatmapTest {
     fun `an empty stretch has no scale of its own`() {
         assertNull(WidgetHeatmap.visibleMax(emptyMap(), endDay = 20_000L, weeks = 4))
         assertNull(WidgetHeatmap.visibleMax(mapOf(1L to 9), endDay = 20_000L, weeks = 4))
+    }
+
+    /**
+     * The real widget on the S24 Ultra: 401x227 dp at density 3.75, reported by the launcher.
+     *
+     * Pinned because this is the case the complaint was about — the graph looking tiny in a widget
+     * that was not tiny — and because the old numbers are worth keeping next to the new ones.
+     */
+    @Test
+    fun `the real four by two widget gets cells worth looking at`() {
+        val density = 3.75f
+        val padding = 12f
+        val headerDp = 15f * 1.5f + 6f
+        val widthPx = ((401f - padding * 2) * density).toInt()
+        val heightPx = ((227f - padding * 2 - headerDp) * density).toInt()
+
+        val spec = WidgetHeatmap.specFor(widthPx, heightPx)!!
+
+        // Pinned exactly, so a change to the header estimate or the cell fraction has to be a
+        // deliberate one. Before this, the library's defaults gave a 774x204 strip that Fit scaled
+        // to the width: cells landed around 44px and about two fifths of the height went unused.
+        assertEquals(78, spec.cellPx)
+        assertEquals(17, spec.gapPx)
+        assertEquals(15, spec.weeks)
+        assertTrue(
+            "the grid is ${spec.heightPx}px tall in a ${heightPx}px box",
+            spec.heightPx >= heightPx - spec.stepPx,
+        )
     }
 }
