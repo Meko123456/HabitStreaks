@@ -4,8 +4,9 @@ import io.github.meko123456.heatmap.HeatmapLayout
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
-/** Cell geometry chosen for one particular widget size. */
+/** Cell geometry for the bitmap the widget draws. */
 internal data class HeatmapSpec(val cellPx: Int, val gapPx: Int, val weeks: Int) {
     val stepPx: Int get() = cellPx + gapPx
     val widthPx: Int get() = weeks * stepPx - gapPx
@@ -13,42 +14,66 @@ internal data class HeatmapSpec(val cellPx: Int, val gapPx: Int, val weeks: Int)
 }
 
 /**
- * Decides how big to draw the contribution grid for the space a widget actually has.
+ * Decides how much history to draw, from the width of the widget.
  *
- * Kept out of the composable and free of Android types so it can be tested on the JVM — the old
- * widget's problem was entirely a sizing decision, not a drawing one, and a sizing decision that
- * nothing could check is how it went unnoticed.
+ * **Width only, deliberately.** A widget is supposed to report its own size, and on the Samsung
+ * launcher the height it reports is the height it could shrink to rather than the height it has —
+ * 72dp for a widget measuring 189dp on screen. Sizing the grid from that produced a graph built for
+ * a sliver. The width is reported honestly (334dp reported, 334dp measured), so the width is what
+ * this trusts.
+ *
+ * The height then takes care of itself: the bitmap's aspect ratio is `weeks : 7`, and the image is
+ * scaled to fit whatever vertical space the widget really turns out to have. Targeting a step of
+ * [TARGET_STEP_DP] makes that ratio land close to a typical widget's, so almost nothing is left
+ * over in either direction.
  */
 internal object WidgetHeatmap {
 
-    /** Below this a cell reads as a smudge rather than a square. */
-    const val MIN_STEP_PX = 6f
+    /**
+     * Roughly how much room one column should get on screen, in dp.
+     *
+     * Chosen so a standard 4x2 widget comes out at about sixteen weeks, whose 16:7 shape is within a
+     * couple of percent of that widget's content box — so the graph fills it nearly exactly.
+     */
+    const val TARGET_STEP_DP = 19f
+
+    /** Fewer than this and it stops reading as a calendar. */
+    const val MIN_WEEKS = 6
 
     /** A year and a bit. Beyond this the contribution calendar has nothing left to show. */
     const val MAX_WEEKS = 53
 
     /**
-     * The grid for a box of [widthPx] by [heightPx], or `null` when the box is too small to draw
-     * seven readable rows in.
+     * Cell and gap used for the bitmap itself, not for the screen.
      *
-     * Height decides the cell size, because seven rows is fixed and they should always fill the box
-     * top to bottom. Width then decides how many weeks fit. So a widget dragged larger gets both
-     * bigger cells *and* more history, rather than the same small strip centred in more space.
+     * The image is scaled up to the widget, so this only sets the resolution it is scaled from.
+     * Sixteen weeks at this size is a 538x232 bitmap — about half a megabyte, comfortably inside
+     * what can be handed to a widget, where the device-resolution version would have been 3.6 MB and
+     * far too big to send.
      */
-    fun specFor(widthPx: Int, heightPx: Int): HeatmapSpec? {
-        if (widthPx <= 0 || heightPx <= 0) return null
+    const val PREFERRED_STEP_PX = 34
 
-        val idealStep = heightPx.toFloat() / HeatmapLayout.ROWS
-        if (idealStep < MIN_STEP_PX) return null
+    /**
+     * How large the bitmap is allowed to be.
+     *
+     * A widget update is delivered over binder, which will not carry much more than a megabyte — the
+     * device-resolution version of this graph came to 3.6 MB and simply never arrived. Staying under
+     * budget matters more than resolution, because the image is scaled up on the way to the screen
+     * and the cells are plain rounded squares that survive it.
+     */
+    const val MAX_BITMAP_BYTES = 800_000
 
-        // Gap first, cell second. Rounding both independently and hoping they add up to the box
-        // leaves a stripe of dead space - about 19px of 654 on a 4x2 widget, which is a visibly
-        // short grid. Fixing the gap and then solving the cell for the height that is actually
-        // there keeps the shortfall under one row.
-        val gapPx = max(1, (idealStep * (1f - HeatmapLayout.CELL_FRACTION)).roundToInt())
-        val cellPx = max(1, (heightPx + gapPx) / HeatmapLayout.ROWS - gapPx)
-        val weeks = min(MAX_WEEKS, max(1, (widthPx + gapPx) / (cellPx + gapPx)))
+    /** The grid for a widget [contentWidthDp] wide, ignoring its self-reported height. */
+    fun specFor(contentWidthDp: Float): HeatmapSpec {
+        val weeks = (contentWidthDp / TARGET_STEP_DP).toInt().coerceIn(MIN_WEEKS, MAX_WEEKS)
 
+        // A wide widget asks for a lot of columns, and at full resolution that is what pushes the
+        // bitmap over what can be delivered. Resolution gives way before history does.
+        val affordableStep = sqrt(MAX_BITMAP_BYTES / (4.0 * HeatmapLayout.ROWS * weeks)).toInt()
+        val step = min(PREFERRED_STEP_PX, affordableStep).coerceAtLeast(4)
+
+        val gapPx = max(1, (step * (1f - HeatmapLayout.CELL_FRACTION)).roundToInt())
+        val cellPx = max(1, step - gapPx)
         return HeatmapSpec(cellPx = cellPx, gapPx = gapPx, weeks = weeks)
     }
 

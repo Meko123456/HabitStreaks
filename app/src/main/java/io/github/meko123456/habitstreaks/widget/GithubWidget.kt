@@ -8,7 +8,6 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
@@ -22,15 +21,12 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
 import androidx.glance.background
-import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
+import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.ContentScale
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
-import androidx.glance.layout.wrapContentHeight
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -40,7 +36,6 @@ import io.github.meko123456.habitstreaks.data.github.GithubContributions
 import io.github.meko123456.habitstreaks.data.github.TokenStore
 import io.github.meko123456.heatmap.HeatmapBitmap
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 class GithubWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GithubWidget()
@@ -97,70 +92,46 @@ class GithubWidget : GlanceAppWidget() {
         Text(text = text, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
     }
 
-    /** The header line plus a heatmap drawn to fill whatever is left of the widget. */
+    /** One header line, then a heatmap filling everything below it. */
     @androidx.compose.runtime.Composable
-    private fun Graph(contributions: GithubContributions) {
+    private fun ColumnScope.Graph(contributions: GithubContributions) {
         val size = LocalSize.current
-        val density = LocalContext.current.resources.displayMetrics.density
         val today = LocalDate.now()
         val todayCount = contributions.countsByDay[today.toEpochDay()] ?: 0
 
-        val compact = size.height.value < 120f
-        val headerSp = if (compact) 13f else 15f
-        // Roughly what the header row occupies, so the graph can claim the rest. Deliberately a
-        // small over-estimate: leaving a spare dp is invisible, overflowing hides a row of the graph.
-        val headerDp = headerSp * 1.5f + 6f
-
-        Row(
-            modifier = GlanceModifier.fillMaxWidth().wrapContentHeight(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "${today.dayOfMonth.pad()}/${today.monthValue.pad()}",
-                style = TextStyle(
-                    fontSize = headerSp.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = GlanceTheme.colors.onSurface,
-                ),
-            )
-            Spacer(GlanceModifier.padding(horizontal = 4.dp))
-            Text(
-                text = todayCount.contributions(),
-                style = TextStyle(
-                    fontSize = headerSp.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (todayCount > 0) GlanceTheme.colors.primary else GlanceTheme.colors.onSurfaceVariant,
-                ),
-                modifier = GlanceModifier.defaultWeight(),
-            )
-            if (!compact) {
-                Text(
-                    text = "@${contributions.login}",
-                    style = TextStyle(
-                        fontSize = (headerSp - 2f).sp,
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                    ),
-                )
-            }
-        }
-
-        val heatmap = renderHeatmap(
-            counts = contributions.countsByDay,
-            endDay = today.toEpochDay(),
-            widthPx = ((size.width.value - PADDING * 2) * density).roundToInt(),
-            heightPx = ((size.height.value - PADDING * 2 - headerDp) * density).roundToInt(),
+        // One Text, not a Row of three. The first attempt put the date, the count and the handle in
+        // a Row and gave the count a weight to push the handle right; on the device only the date
+        // survived - the weighted child measured to nothing and the rest went with it. A single
+        // string cannot collapse.
+        Text(
+            text = "${today.dayOfMonth.pad()}/${today.monthValue.pad()}  ${todayCount.contributions()}",
+            style = TextStyle(
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (todayCount > 0) GlanceTheme.colors.primary else GlanceTheme.colors.onSurface,
+            ),
+            maxLines = 1,
+            modifier = GlanceModifier.fillMaxWidth(),
         )
-        if (heatmap != null) {
-            Image(
-                provider = ImageProvider(heatmap),
-                contentDescription = "$todayCount contributions today, " +
-                    "${contributions.total} in the last year",
-                // The bitmap is already built for this box, so Fit scales it barely at all -
-                // and Fit rather than FillBounds so cells stay square if the maths is a dp out.
-                contentScale = ContentScale.Fit,
-                modifier = GlanceModifier.fillMaxSize().padding(top = 4.dp),
-            )
-        }
+
+        val spec = WidgetHeatmap.specFor(size.width.value - PADDING * 2)
+        Image(
+            provider = ImageProvider(
+                HeatmapBitmap.render(
+                    counts = contributions.countsByDay,
+                    endDay = today.toEpochDay(),
+                    weeks = spec.weeks,
+                    cellPx = spec.cellPx,
+                    gapPx = spec.gapPx,
+                    maxCount = WidgetHeatmap.visibleMax(contributions.countsByDay, today.toEpochDay(), spec.weeks),
+                ),
+            ),
+            contentDescription = "$todayCount contributions today, ${contributions.total} in the last year",
+            // Fit keeps the cells square; defaultWeight is what actually hands the image the rest of
+            // the column. fillMaxSize looked equivalent and left it with no height at all.
+            contentScale = ContentScale.Fit,
+            modifier = GlanceModifier.fillMaxWidth().defaultWeight().padding(top = 6.dp),
+        )
     }
 
     private companion object {
@@ -172,24 +143,6 @@ class GithubWidget : GlanceAppWidget() {
             0 -> "no contributions yet"
             1 -> "1 contribution"
             else -> "$this contributions"
-        }
-
-        /** Draws the heatmap at the size it will actually occupy, or nothing if it cannot fit. */
-        fun renderHeatmap(
-            counts: Map<Long, Int>,
-            endDay: Long,
-            widthPx: Int,
-            heightPx: Int,
-        ): android.graphics.Bitmap? {
-            val spec = WidgetHeatmap.specFor(widthPx, heightPx) ?: return null
-            return HeatmapBitmap.render(
-                counts = counts,
-                endDay = endDay,
-                weeks = spec.weeks,
-                cellPx = spec.cellPx,
-                gapPx = spec.gapPx,
-                maxCount = WidgetHeatmap.visibleMax(counts, endDay, spec.weeks),
-            )
         }
     }
 }
