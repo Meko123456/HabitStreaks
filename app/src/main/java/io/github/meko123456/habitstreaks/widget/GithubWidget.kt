@@ -39,6 +39,18 @@ import java.time.LocalDate
 
 class GithubWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GithubWidget()
+
+    /** First widget added: start keeping it current. */
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        WidgetRefreshWorker.schedule(context)
+    }
+
+    /** Last widget removed: stop asking GitHub anything. */
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        WidgetRefreshWorker.cancel(context)
+    }
 }
 
 /** Home-screen widget rendering the real GitHub contribution calendar. */

@@ -10,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import io.github.meko123456.habitstreaks.reminders.ReminderWorker
+import io.github.meko123456.habitstreaks.widget.WidgetRefreshWorker
 import io.github.meko123456.habitstreaks.ui.HomeScreen
 import io.github.meko123456.habitstreaks.ui.theme.HabitStreaksTheme
 
@@ -22,6 +23,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ReminderWorker.schedule(this)
+        // Also here, not only from the widget receiver's onEnabled: that fires when the *first*
+        // widget is added, so a widget already on the home screen before this code shipped would
+        // never have had a refresh scheduled. KEEP makes repeating it harmless.
+        WidgetRefreshWorker.schedule(this)
         askForNotificationsIfNeeded()
         setContent {
             HabitStreaksTheme {
