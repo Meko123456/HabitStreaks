@@ -63,6 +63,11 @@ class GithubWidget : GlanceAppWidget() {
      * `LocalSize.current` reports 250×90 however large the user has actually dragged it — and the
      * heatmap was drawn for that minimum and then letterboxed into whatever space was really there.
      * Exact recomposes per size, which is what lets the graph be drawn at the size it will occupy.
+     *
+     * It is not free: one composition per size the launcher offers means one heatmap bitmap per
+     * size in the same update, so the parcel carries roughly twice what
+     * [WidgetHeatmap.MAX_BITMAP_BYTES] bounds. Still an order of magnitude inside what a widget
+     * host will accept — see that constant for the arithmetic.
      */
     override val sizeMode: SizeMode = SizeMode.Exact
 

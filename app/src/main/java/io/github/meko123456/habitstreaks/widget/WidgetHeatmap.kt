@@ -60,6 +60,21 @@ internal object WidgetHeatmap {
      * device-resolution version of this graph came to 3.6 MB and simply never arrived. Staying under
      * budget matters more than resolution, because the image is scaled up on the way to the screen
      * and the cells are plain rounded squares that survive it.
+     *
+     * **This bounds one bitmap, not the whole update.** `SizeMode.Exact` composes the widget once
+     * per size the launcher offers — two in practice, portrait and landscape — and Glance hands
+     * those RemoteViews to a single shared bitmap cache, so the update carries one heatmap per
+     * size. The largest [specFor] can produce is 1048x184 ARGB_8888, 771,328 bytes, which makes the
+     * worst update about 1.5 MB. Nothing else in either widget adds to that: the rest is text,
+     * theme colours and resource-backed checkboxes, no other `Bitmap`, `Icon` or `ImageProvider`.
+     *
+     * Those are also the bytes Android 17 measures. An app targeting SDK 37 may not hand a widget
+     * host a RemoteViews whose bitmaps *and icons* together exceed `1.5 × displayWidth ×
+     * displayHeight × 4`, and overshooting is a fatal `IllegalArgumentException` rather than a
+     * dropped update. That budget is 12.4 MB on a 1080x1920 phone and still 5.5 MB on a 720x1280
+     * one, so 1.5 MB leaves a factor of eight, or of three on the smallest panel likely to run it.
+     * A larger display only widens the margin, because the budget grows with the display while
+     * [MAX_WEEKS] and this constant keep the bitmap fixed. `WidgetHeatmapTest` pins all of it.
      */
     const val MAX_BITMAP_BYTES = 800_000
 

@@ -52,23 +52,99 @@ class WidgetHeatmapTest {
     }
 
     @Test
-    fun `the bitmap stays small enough to hand to a widget`() {
-        // A widget update travels over binder; the device-resolution version of this was 3.6 MB and
-        // never arrived. Anything under about a megabyte is safe.
-        for (dp in 100..2000 step 50) {
-            val spec = WidgetHeatmap.specFor(dp.toFloat())
-            val bytes = spec.widthPx * spec.heightPx * 4
-            assertTrue("$bytes bytes at ${dp}dp wide", bytes <= WidgetHeatmap.MAX_BITMAP_BYTES)
-        }
-    }
-
-    @Test
     fun `the widest widget still carries a full year`() {
         val spec = WidgetHeatmap.specFor(2000f)
         assertEquals(WidgetHeatmap.MAX_WEEKS, spec.weeks)
         // History is kept and resolution given up, not the other way round.
         assertTrue("step was ${spec.stepPx}", spec.stepPx < WidgetHeatmap.PREFERRED_STEP_PX)
-        assertTrue(spec.widthPx * spec.heightPx * 4 <= WidgetHeatmap.MAX_BITMAP_BYTES)
+        assertTrue(spec.bytes() <= WidgetHeatmap.MAX_BITMAP_BYTES)
+    }
+
+    // ───────── what the update is allowed to weigh ─────────
+
+    /**
+     * Every width, not a sample of them.
+     *
+     * The budget is held indirectly: `specFor` solves for a step size and the bitmap falls out of
+     * it. So a change to the step, the gap or the week count can push a bitmap over without
+     * anything in `specFor` looking wrong, and the old sample at 50dp intervals only found the
+     * worst case by luck. Half a dp at a time, out past any display that exists.
+     */
+    @Test
+    fun `the bitmap stays inside its budget at every width`() {
+        for (halfDp in 0..8_000) {
+            val dp = halfDp / 2f
+            val bytes = WidgetHeatmap.specFor(dp).bytes()
+            assertTrue("$bytes bytes at ${dp}dp wide", bytes <= WidgetHeatmap.MAX_BITMAP_BYTES)
+        }
+    }
+
+    /** A width that is not a width at all still has to produce a drawable, affordable grid. */
+    @Test
+    fun `a nonsense width is still inside the budget`() {
+        val widths = listOf(
+            Float.NaN,
+            Float.POSITIVE_INFINITY,
+            Float.NEGATIVE_INFINITY,
+            -1e9f,
+            1e9f,
+            Float.MIN_VALUE,
+        )
+        for (dp in widths) {
+            val spec = WidgetHeatmap.specFor(dp)
+            assertTrue("$dp gave ${spec.bytes()} bytes", spec.bytes() <= WidgetHeatmap.MAX_BITMAP_BYTES)
+            assertTrue("$dp gave ${spec.weeks} weeks", spec.weeks in WidgetHeatmap.MIN_WEEKS..WidgetHeatmap.MAX_WEEKS)
+            assertTrue(spec.cellPx >= 1 && spec.gapPx >= 1)
+        }
+    }
+
+    /**
+     * The worst case, written down.
+     *
+     * Not at the widest widget, which trades resolution away: it is at about 741dp, where the grid
+     * is still drawn at 27px a column and has just reached 39 of them. Pinning the number means a
+     * geometry change that eats the headroom shows up as a failing assertion rather than as a
+     * still-passing inequality.
+     */
+    @Test
+    fun `the largest bitmap the widget can produce is 771 KB`() {
+        val worst = (0..8_000).map { WidgetHeatmap.specFor(it / 2f) }.maxBy { it.bytes() }
+        assertEquals(39, worst.weeks)
+        assertEquals(1048, worst.widthPx)
+        assertEquals(184, worst.heightPx)
+        assertEquals(771_328, worst.bytes())
+    }
+
+    /**
+     * The limit that kills the process, rather than the one that drops the update.
+     *
+     * An app targeting SDK 37 may not hand a widget host a RemoteViews whose bitmaps and icons
+     * exceed `1.5 × displayWidth × displayHeight × 4`; overshooting is a fatal
+     * `IllegalArgumentException`. `SizeMode.Exact` means the update carries one heatmap per size
+     * the launcher offers, sharing one bitmap cache, so the figure to compare is a multiple of the
+     * per-bitmap budget — not the budget itself.
+     *
+     * The cap grows with the display, so a big screen is the easy case: the tightest panel likely
+     * to be running Android 17 is what the margin should be measured against.
+     */
+    @Test
+    fun `the whole update fits the host's bitmap memory cap`() {
+        val worst = (0..8_000).maxOf { WidgetHeatmap.specFor(it / 2f).bytes() }
+        val displays = listOf(720 to 1280, 1080 to 1920, 1080 to 2400, 1600 to 2560)
+        for ((w, h) in displays) {
+            val cap = 6L * w * h // 1.5 × w × h × 4
+            // What a launcher actually asks for, with at least the same again to spare.
+            assertTrue(
+                "${worst.toLong() * SIZE_VARIANTS} bytes against a $cap byte cap on ${w}x$h",
+                worst.toLong() * SIZE_VARIANTS <= cap / 2,
+            )
+            // And if a launcher ever doubled the sizes it offers, it would still fit — with less
+            // room, which is the point of stating it separately.
+            assertTrue(
+                "${worst.toLong() * 2 * SIZE_VARIANTS} bytes against a $cap byte cap on ${w}x$h",
+                worst.toLong() * 2 * SIZE_VARIANTS <= cap,
+            )
+        }
     }
 
     @Test
@@ -98,5 +174,19 @@ class WidgetHeatmapTest {
     fun `an empty stretch has no scale of its own`() {
         assertNull(WidgetHeatmap.visibleMax(emptyMap(), endDay = 20_000L, weeks = 4))
         assertNull(WidgetHeatmap.visibleMax(mapOf(1L to 9), endDay = 20_000L, weeks = 4))
+    }
+
+    private companion object {
+        /**
+         * How many heatmaps ride in one update.
+         *
+         * Glance's `SizeMode.Exact` composes once per entry in the launcher's
+         * `OPTION_APPWIDGET_SIZES`, and falls back to landscape-plus-portrait when that is absent —
+         * two either way, on every launcher that has been looked at.
+         */
+        const val SIZE_VARIANTS = 2
+
+        /** What the bitmap actually costs: `HeatmapBitmap.render` builds it ARGB_8888. */
+        fun HeatmapSpec.bytes(): Int = widthPx * heightPx * 4
     }
 }
