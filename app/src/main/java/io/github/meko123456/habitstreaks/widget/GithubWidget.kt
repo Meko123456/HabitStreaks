@@ -53,8 +53,20 @@ class GithubWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 }
 
-/** Home-screen widget rendering the real GitHub contribution calendar. */
-class GithubWidget : GlanceAppWidget() {
+/**
+ * Home-screen widget rendering the real GitHub contribution calendar.
+ *
+ * Open, with its data as a parameter, for one reason: a debug build can put the same widget on a
+ * home screen without a token. Everything a launcher is sent — the size mode, the layout, the
+ * heatmap bitmap — comes from this class either way, and both are final so a subclass can change
+ * the data and nothing else. Checking a new Android release against the debug copy checks what
+ * ships.
+ *
+ * [loadContributions] answers null when there is no token to ask GitHub with.
+ */
+open class GithubWidget(
+    private val loadContributions: suspend (Context) -> Result<GithubContributions>? = ::fromGithub,
+) : GlanceAppWidget() {
 
     /**
      * Exact, not the default Single.
@@ -69,11 +81,10 @@ class GithubWidget : GlanceAppWidget() {
      * [WidgetHeatmap.MAX_BITMAP_BYTES] bounds. Still an order of magnitude inside what a widget
      * host will accept — see that constant for the arithmetic.
      */
-    override val sizeMode: SizeMode = SizeMode.Exact
+    final override val sizeMode: SizeMode = SizeMode.Exact
 
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val token = TokenStore(context).load()
-        val result = token?.let { GithubClient().fetchContributions(it) }
+    final override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val result = loadContributions(context)
 
         provideContent {
             GlanceTheme {
@@ -163,6 +174,9 @@ class GithubWidget : GlanceAppWidget() {
         }
     }
 }
+
+private suspend fun fromGithub(context: Context): Result<GithubContributions>? =
+    TokenStore(context).load()?.let { GithubClient().fetchContributions(it) }
 
 class RefreshGithubWidgetAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
