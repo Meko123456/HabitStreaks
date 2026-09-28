@@ -75,14 +75,19 @@ jobs:
           profile: small_phone
           ram-size: 4096M
           cores: 4
-          # One command per line, as the runner executes them. The first waits for the package and
-          # activity services to answer: on the first runs sys.boot_completed was 1 and eleven
-          # seconds later "Can't find service: package" failed the install. The last keeps the
-          # platform's words for the refusal the overflow test provokes, "used: N, max: M".
+          # One command per line, as the runner executes them. Answering once is not enough: on
+          # this image the package and activity services answered two seconds after boot and were
+          # gone again thirteen seconds later, when the install needed them. So: wait for them,
+          # let the system settle, and wait for them to answer again, boot_completed included in
+          # case the system server restarted. The last two lines keep the platform's words for the
+          # refusal the overflow test provokes ("used: N, max: M") and whatever crashed.
           script: |
             for i in $(seq 1 90); do adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services up after $((i * 2))s" && break; sleep 2; done
+            sleep 60
+            for i in $(seq 1 120); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ] && adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services still up after the settle, $((i * 2))s more" && break; sleep 2; done
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
             adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || echo "no refusal in logcat"
+            adb logcat -d -b crash | tail -60 || true
 
       # The connected task can pass having run nothing. AGP 9's test engine logged "AndroidTestRunner
       # failed on emulator-5554 ... Failed to install APK" and still ended BUILD SUCCESSFUL with a
