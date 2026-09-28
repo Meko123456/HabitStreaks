@@ -12,6 +12,20 @@
                 <action android:name="io.github.meko123456.habitstreaks.SEED_DEMO" />
             </intent-filter>
         </receiver>
+
+        <!-- Debug builds only: the GitHub widget with a made-up year, so it can go on a home
+             screen without a token. It shares the real widget's provider info, and so its sizes. -->
+        <receiver
+            android:name="io.github.meko123456.habitstreaks.debug.DemoGithubWidgetReceiver"
+            android:exported="false"
+            android:label="@string/demo_github_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/github_widget_info" />
+        </receiver>
     </application>
 
 </manifest>
