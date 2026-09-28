@@ -12,6 +12,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Process
+import android.os.SystemClock
 import android.util.Size
 import android.util.SizeF
 import android.view.Display
@@ -81,7 +82,7 @@ class GithubWidgetOnDeviceTest {
         // not as the teardown tripping over a host that was never made — which is all the first
         // Android 17 run that got this far could say.
         host = RecordingHost(context)
-        host.startListening()
+        startListeningOnceUnlocked()
         appWidgetId = host.allocateAppWidgetId()
         val provider = ComponentName(context, DemoGithubWidgetReceiver::class.java)
         assertTrue(
@@ -177,6 +178,34 @@ class GithubWidgetOnDeviceTest {
 
     private fun Shown.isGlanceError() =
         context.getString(androidx.glance.appwidget.R.string.glance_error_layout_text_v2) in texts
+
+    /**
+     * Starts the host, waiting out a widget service that does not yet count the user as unlocked.
+     *
+     * On the Android 17 emulator the service refused the host with "User 0 must be unlocked for
+     * widgets to be available" a minute after boot had completed, while this very process — which
+     * is not direct-boot aware — was running. Only that refusal is retried, for up to a minute, and
+     * a host still refused after it fails with the user's state as the shell reports it.
+     */
+    private fun startListeningOnceUnlocked(timeoutMillis: Long = 60_000) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMillis
+        while (true) {
+            try {
+                host.startListening()
+                return
+            } catch (refused: IllegalStateException) {
+                if ("must be unlocked" !in refused.message.orEmpty()) throw refused
+                if (SystemClock.uptimeMillis() > deadline) {
+                    throw AssertionError(
+                        "widget host still refused after ${timeoutMillis / 1000}s; user state: " +
+                            shell("am get-started-user-state ${Process.myUid() / PER_USER_RANGE}").trim(),
+                        refused,
+                    )
+                }
+                Thread.sleep(1_000)
+            }
+        }
+    }
 
     /** Runs [command] as the shell and returns what it printed. */
     private fun shell(command: String): String =
