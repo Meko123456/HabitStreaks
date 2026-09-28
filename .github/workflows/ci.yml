@@ -73,28 +73,32 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: small_phone
-          # The second line keeps the platform's own words for the refusal the overflow test
-          # provokes, "used: N, max: M", while the emulator is still up to be asked.
-          script: |
-            ./gradlew :app:connectedDebugAndroidTest --stacktrace
-            adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || true
+          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
 
       # A green job says nothing about how many tests ran: an assumption that fails is a skip, not a
-      # failure. This puts every result in the log.
+      # failure. This puts every result in the log, and the platform's own words for the refusal the
+      # overflow test provokes ("used: N, max: M"), from the logcat the test runner keeps per test.
+      # Both are searched for rather than expected at a path, because the first attempt at a fixed
+      # path found nothing and said so by saying nothing.
       - name: Instrumented test results
         if: always()
         run: |
+          find app/build -path '*androidTest*' \( -name '*.xml' -o -name 'logcat-*' \) | sort
           python3 - <<'PY'
           import glob, xml.etree.ElementTree as ET
-          for path in glob.glob("app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+          paths = [p for p in glob.glob("app/build/**/*.xml", recursive=True) if "androidTest-results" in p]
+          for path in paths:
               for case in ET.parse(path).getroot().iter("testcase"):
                   outcome = "skipped" if case.find("skipped") is not None else "failed" if case.find("failure") is not None else "passed"
                   print(f"{outcome:8} {case.get('classname').rsplit('.', 1)[-1]}.{case.get('name')} ({case.get('time')}s)")
           PY
+          grep -rh "exceeds maximum bitmap memory usage" app/build/outputs/androidTest-results || echo "no refusal in the kept logcat"
 
       - name: Upload instrumented test report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: android-17-widget-report
-          path: app/build/reports/androidTests/connected/
+          path: |
+            app/build/reports/androidTests/connected/
+            app/build/outputs/androidTest-results/
