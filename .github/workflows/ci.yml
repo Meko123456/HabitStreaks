@@ -46,18 +46,12 @@ jobs:
     # scales with the panel, so that is where it leaves the least room — and where a RemoteViews
     # can carry enough sizes to pass it.
     #
-    # Three Android 17 images, because the first one tried loses its system server within seconds
-    # of boot on this runner, every time, and nothing in the log said why. fail-fast is off so each
-    # says for itself which works; the emulator streams crash-relevant logcat into the job log.
-    name: widget-on-android-17 (${{ matrix.image.api }} ${{ matrix.image.target }})
+    # The Play Store image, because it is the one that stays up on this runner. Three were tried
+    # side by side: 37.1's 16 KB-page image loses SurfaceFlinger to a graphics assertion
+    # ("!rcEnc->featureInfo()->hasReadColorBuffer...") seconds after boot and the system server
+    # with it, and 37.0 google_apis lost its services the same way on four runs. The emulator
+    # streams crash and test-runner logcat into the job log, so the next surprise names itself.
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        image:
-          - { api: '37.0', target: google_apis }
-          - { api: '37.0', target: google_apis_playstore }
-          - { api: '37.1', target: google_apis_ps16k }
     steps:
       - uses: actions/checkout@v7
 
@@ -81,11 +75,11 @@ jobs:
       - name: Widget test on an Android 17 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: ${{ matrix.image.api }}
-          target: ${{ matrix.image.target }}
+          api-level: '37.0'
+          target: google_apis_playstore
           arch: x86_64
           profile: small_phone
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E *:S'
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E *:S'
           ram-size: 4096M
           cores: 4
           # One command per line, as the runner executes them. Answering once is not enough: on
@@ -122,7 +116,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-17-widget-report-${{ matrix.image.api }}-${{ matrix.image.target }}
+          name: android-17-widget-report
           path: |
             app/build/reports/androidTests/connected/
             app/build/outputs/androidTest-results/
