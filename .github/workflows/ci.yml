@@ -73,26 +73,32 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: small_phone
-          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
+          ram-size: 4096M
+          cores: 4
+          # One command per line, as the runner executes them. The first waits for the package and
+          # activity services to answer: on the first runs sys.boot_completed was 1 and eleven
+          # seconds later "Can't find service: package" failed the install. The last keeps the
+          # platform's words for the refusal the overflow test provokes, "used: N, max: M".
+          script: |
+            for i in $(seq 1 90); do adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services up after $((i * 2))s" && break; sleep 2; done
+            ./gradlew :app:connectedDebugAndroidTest --stacktrace
+            adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || echo "no refusal in logcat"
 
-      # A green job says nothing about how many tests ran: an assumption that fails is a skip, not a
-      # failure. This puts every result in the log, and the platform's own words for the refusal the
-      # overflow test provokes ("used: N, max: M"), from the logcat the test runner keeps per test.
-      # Both are searched for rather than expected at a path, because the first attempt at a fixed
-      # path found nothing and said so by saying nothing.
+      # The connected task can pass having run nothing. AGP 9's test engine logged "AndroidTestRunner
+      # failed on emulator-5554 ... Failed to install APK" and still ended BUILD SUCCESSFUL with a
+      # report of 0 tests, twice. So the report is read and the job fails unless tests ran, none
+      # was skipped (a failed assumption is a skip) and none failed.
       - name: Instrumented test results
         if: always()
         run: |
-          find app/build -path '*androidTest*' \( -name '*.xml' -o -name 'logcat-*' \) | sort
           python3 - <<'PY'
-          import glob, xml.etree.ElementTree as ET
-          paths = [p for p in glob.glob("app/build/**/*.xml", recursive=True) if "androidTest-results" in p]
-          for path in paths:
-              for case in ET.parse(path).getroot().iter("testcase"):
-                  outcome = "skipped" if case.find("skipped") is not None else "failed" if case.find("failure") is not None else "passed"
-                  print(f"{outcome:8} {case.get('classname').rsplit('.', 1)[-1]}.{case.get('name')} ({case.get('time')}s)")
+          import re, sys
+          page = open("app/build/reports/androidTests/connected/debug/index.html").read()
+          count = {k: re.search(rf'id="{k}">\s*<div class="counter">(\d+)</div>', page) for k in ("tests", "failures", "skipped")}
+          count = {k: int(m.group(1)) if m else None for k, m in count.items()}
+          print(f"{count['tests']} tests, {count['failures']} failed, {count['skipped']} skipped")
+          sys.exit(0 if count["tests"] and count["failures"] == 0 and count["skipped"] == 0 else 1)
           PY
-          grep -rh "exceeds maximum bitmap memory usage" app/build/outputs/androidTest-results || echo "no refusal in the kept logcat"
 
       - name: Upload instrumented test report
         if: always()
