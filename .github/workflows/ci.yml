@@ -86,13 +86,17 @@ jobs:
           # this image the package and activity services answered two seconds after boot and were
           # gone again thirteen seconds later, when the install needed them. So: wait for them,
           # let the system settle, and wait for them to answer again, boot_completed included in
-          # case the system server restarted. The last two lines keep the platform's words for the
-          # refusal the overflow test provokes ("used: N, max: M") and whatever crashed.
+          # case the system server restarted. Then wait for user 0 to be unlocked, dismissing the
+          # keyguard until it is: a minute after boot_completed it was still BOOTING, which made
+          # the widget service refuse to host and started the test process without its content
+          # providers, WorkManager's initializer among them. The last two lines keep the
+          # platform's words for the refusal the overflow test provokes ("used: N, max: M") and
+          # whatever crashed.
           script: |
             for i in $(seq 1 90); do adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services up after $((i * 2))s" && break; sleep 2; done
             sleep 60
             for i in $(seq 1 120); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ] && adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services still up after the settle, $((i * 2))s more" && break; sleep 2; done
-            adb shell am get-started-user-state 0; adb shell wm dismiss-keyguard || true
+            for i in $(seq 1 90); do state=$(adb shell am get-started-user-state 0 | tr -d '\r'); [ "$state" != "$last" ] && echo "user 0: $state after $((i * 2))s" && last=$state; [ "$state" = "RUNNING_UNLOCKED" ] && break; adb shell wm dismiss-keyguard >/dev/null 2>&1; adb shell input keyevent 82 >/dev/null 2>&1; sleep 2; done
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
             adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || echo "no refusal in logcat"
             adb logcat -d -b crash | tail -60 || true
