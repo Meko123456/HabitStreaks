@@ -13,6 +13,7 @@ import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Process
 import android.os.SystemClock
+import android.util.Log
 import android.util.Size
 import android.util.SizeF
 import android.view.Display
@@ -26,6 +27,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import io.github.meko123456.habitstreaks.debug.DemoGithubWidget
 import io.github.meko123456.habitstreaks.debug.DemoGithubWidgetReceiver
 import java.io.FileInputStream
@@ -75,9 +78,15 @@ class GithubWidgetOnDeviceTest {
 
     @Before
     fun bindTheDemoWidget() {
-        // What a launcher is granted by the user; a test is granted it by the shell. The user is
-        // given as a number: on the Android 16 image `--user current` fails with the usage text.
-        val granted = shell("appwidget grantbind --package ${context.packageName} --user ${Process.myUid() / PER_USER_RANGE}")
+        // Glance runs its sessions on WorkManager, which androidx.startup initializes from a content
+        // provider. On the Android 17 emulator AGP's test engine started this process without its
+        // providers having run, and every update died on "WorkManager is not initialized
+        // properly". Initialize it here in that case, and say so, rather than test nothing.
+        if (!WorkManager.isInitialized()) {
+            Log.w(TAG, "WorkManager was not initialized by androidx.startup; initializing it for the test")
+            WorkManager.initialize(context, Configuration.Builder().build())
+        }
+        val granted = grantBind()
         // Assigned before anything that can throw, so a setup that fails is reported as itself and
         // not as the teardown tripping over a host that was never made — which is all the first
         // Android 17 run that got this far could say.
@@ -85,9 +94,18 @@ class GithubWidgetOnDeviceTest {
         startListeningOnceUnlocked()
         appWidgetId = host.allocateAppWidgetId()
         val provider = ComponentName(context, DemoGithubWidgetReceiver::class.java)
+        // A refused bind is granted again and retried once — on Android 17 one test in three was
+        // refused with the grant apparently in place — and a second refusal fails with what the
+        // widget service itself says about the grant.
+        val bound = manager.bindAppWidgetIdIfAllowed(appWidgetId, provider, options(sizes = 2)) ||
+            run {
+                grantBind()
+                manager.bindAppWidgetIdIfAllowed(appWidgetId, provider, options(sizes = 2))
+            }
         assertTrue(
-            "could not bind $provider; grantbind said \"${granted.trim()}\"",
-            manager.bindAppWidgetIdIfAllowed(appWidgetId, provider, options(sizes = 2)),
+            "could not bind $provider; grantbind said \"${granted.trim()}\"; the widget service says: " +
+                shell("dumpsys appwidget").lines().filter { "Grant" in it || context.packageName in it }.take(6),
+            bound,
         )
         instrumentation.runOnMainSync { host.createView(context, appWidgetId, manager.getAppWidgetInfo(appWidgetId)) }
         runBlocking { DemoGithubWidget().update(context, GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)) }
@@ -207,6 +225,13 @@ class GithubWidgetOnDeviceTest {
         }
     }
 
+    /**
+     * What a launcher is granted by the user; a test is granted it by the shell. The user is named
+     * as a number: on the Android 16 image `--user current` fails with the usage text.
+     */
+    private fun grantBind(): String =
+        shell("appwidget grantbind --package ${context.packageName} --user ${Process.myUid() / PER_USER_RANGE}")
+
     /** Runs [command] as the shell and returns what it printed. */
     private fun shell(command: String): String =
         instrumentation.uiAutomation.executeShellCommand(command).use { output ->
@@ -261,6 +286,7 @@ class GithubWidgetOnDeviceTest {
 
     private companion object {
         const val HOST_ID = 0x4854 // "HT"; any id not used by another host in this app
+        const val TAG = "GithubWidgetOnDevice"
         const val MAX_SIZES = 16 // RemoteViews(Map<SizeF, RemoteViews>) refuses more
         const val PER_USER_RANGE = 100_000 // uid = user id × this + app id, as UserHandle has it
     }
