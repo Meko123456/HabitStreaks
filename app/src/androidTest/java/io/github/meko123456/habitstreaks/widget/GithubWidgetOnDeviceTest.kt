@@ -76,18 +76,26 @@ class GithubWidgetOnDeviceTest {
     fun bindTheDemoWidget() {
         // What a launcher is granted by the user; a test is granted it by the shell. The user is
         // given as a number: on the Android 16 image `--user current` fails with the usage text.
-        shell("appwidget grantbind --package ${context.packageName} --user ${Process.myUid() / PER_USER_RANGE}")
-        host = RecordingHost(context).apply { startListening() }
+        val granted = shell("appwidget grantbind --package ${context.packageName} --user ${Process.myUid() / PER_USER_RANGE}")
+        // Assigned before anything that can throw, so a setup that fails is reported as itself and
+        // not as the teardown tripping over a host that was never made — which is all the first
+        // Android 17 run that got this far could say.
+        host = RecordingHost(context)
+        host.startListening()
         appWidgetId = host.allocateAppWidgetId()
         val provider = ComponentName(context, DemoGithubWidgetReceiver::class.java)
-        assertTrue("could not bind $provider", manager.bindAppWidgetIdIfAllowed(appWidgetId, provider, options(sizes = 2)))
+        assertTrue(
+            "could not bind $provider; grantbind said \"${granted.trim()}\"",
+            manager.bindAppWidgetIdIfAllowed(appWidgetId, provider, options(sizes = 2)),
+        )
         instrumentation.runOnMainSync { host.createView(context, appWidgetId, manager.getAppWidgetInfo(appWidgetId)) }
         runBlocking { DemoGithubWidget().update(context, GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)) }
     }
 
     @After
     fun unbind() {
-        host.deleteAppWidgetId(appWidgetId)
+        if (!::host.isInitialized) return
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) host.deleteAppWidgetId(appWidgetId)
         host.stopListening()
     }
 
@@ -170,11 +178,11 @@ class GithubWidgetOnDeviceTest {
     private fun Shown.isGlanceError() =
         context.getString(androidx.glance.appwidget.R.string.glance_error_layout_text_v2) in texts
 
-    private fun shell(command: String) {
+    /** Runs [command] as the shell and returns what it printed. */
+    private fun shell(command: String): String =
         instrumentation.uiAutomation.executeShellCommand(command).use { output ->
-            FileInputStream(output.fileDescriptor).use { it.readBytes() }
+            FileInputStream(output.fileDescriptor).use { it.readBytes().decodeToString() }
         }
-    }
 
     private data class Worst(val widgetWidthDp: Float, val spec: HeatmapSpec) {
         val size = Size(spec.widthPx, spec.heightPx)
