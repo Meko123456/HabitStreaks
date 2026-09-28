@@ -62,18 +62,25 @@ class WidgetParcelBudgetTest {
         assertTrue(widgetSources.all { it.readText().isNotBlank() })
     }
 
+    /**
+     * Pinned by file rather than by line. It first named `GithubWidget.kt:136`, which made it fail
+     * for any edit above the heatmap — the count unchanged, the budget still right — and a
+     * tripwire that goes off for nothing teaches people to step over it. The lines are still
+     * reported, so a real failure says where to look.
+     */
     @Test
     fun `the widget update still carries exactly one image`() {
         val calls = widgetSources.flatMap { file ->
             file.codeLines()
                 .filter { (_, line) -> "ImageProvider(" in line }
-                .map { (i, _) -> "${file.name}:${i + 1}" }
+                .map { (i, _) -> file.name to i + 1 }
         }
         assertEquals(
             "Image count changed. Re-derive the parcel budget in WidgetHeatmap.MAX_BITMAP_BYTES's " +
-                "KDoc before updating this number — at targetSdk 37 the overflow is a crash. Found: $calls",
-            listOf("GithubWidget.kt:136"),
-            calls,
+                "KDoc before updating this number — at targetSdk 37 the overflow is a crash. Found: " +
+                calls.joinToString { (file, line) -> "$file:$line" },
+            listOf("GithubWidget.kt"),
+            calls.map { (file, _) -> file },
         )
     }
 
