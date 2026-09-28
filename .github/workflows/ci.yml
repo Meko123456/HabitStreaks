@@ -88,7 +88,7 @@ jobs:
           profile: small_phone
           # GL DMA off: the aborts assert that the host does not offer reading colour buffers by
           # DMA, and these features are the likeliest reason it does.
-          emulator-options: -no-window -gpu swiftshader_indirect -feature -GLDMA -feature -GLDMA2 -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E *:S'
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -GLDMA -feature -GLDMA2 -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
           ram-size: 4096M
           cores: 4
           # One command per line, as the runner executes them. Answering once is not enough: on
