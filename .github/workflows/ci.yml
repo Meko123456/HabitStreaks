@@ -92,6 +92,7 @@ jobs:
             for i in $(seq 1 90); do adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services up after $((i * 2))s" && break; sleep 2; done
             sleep 60
             for i in $(seq 1 120); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ] && adb shell cmd package list packages >/dev/null 2>&1 && adb shell cmd activity get-current-user >/dev/null 2>&1 && echo "services still up after the settle, $((i * 2))s more" && break; sleep 2; done
+            adb shell am get-started-user-state 0; adb shell wm dismiss-keyguard || true
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
             adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || echo "no refusal in logcat"
             adb logcat -d -b crash | tail -60 || true
