@@ -73,7 +73,24 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: small_phone
-          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
+          # The second line keeps the platform's own words for the refusal the overflow test
+          # provokes, "used: N, max: M", while the emulator is still up to be asked.
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest --stacktrace
+            adb logcat -d | grep -E "exceeds maximum bitmap memory usage" || true
+
+      # A green job says nothing about how many tests ran: an assumption that fails is a skip, not a
+      # failure. This puts every result in the log.
+      - name: Instrumented test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  outcome = "skipped" if case.find("skipped") is not None else "failed" if case.find("failure") is not None else "passed"
+                  print(f"{outcome:8} {case.get('classname').rsplit('.', 1)[-1]}.{case.get('name')} ({case.get('time')}s)")
+          PY
 
       - name: Upload instrumented test report
         if: failure()
