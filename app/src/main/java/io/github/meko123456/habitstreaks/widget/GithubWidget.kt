@@ -162,12 +162,13 @@ open class GithubWidget(
         )
     }
 
-    private companion object {
+    internal companion object {
+        /** On every side, inside the rounded background; the heatmap is drawn for what is left. */
         const val PADDING = 12f
 
-        fun Int.pad(): String = if (this < 10) "0$this" else "$this"
+        private fun Int.pad(): String = if (this < 10) "0$this" else "$this"
 
-        fun Int.contributions(): String = when (this) {
+        private fun Int.contributions(): String = when (this) {
             0 -> "no contributions yet"
             1 -> "1 contribution"
             else -> "$this contributions"
