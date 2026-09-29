@@ -47,7 +47,7 @@ reminders/  WorkManager daily reminder worker
 
 The streak math and the day arithmetic are deliberately isolated from Android — pure Kotlin
 functions over `LocalDate.toEpochDay()` sets and `ZonedDateTime`, unit-tested without a device
-(19 tests in `domain/`, 21 in the repo).
+(19 tests in `domain/`, 37 in the repo, and three more that need a device — below).
 
 ## Connecting your GitHub account
 
@@ -67,6 +67,26 @@ written to your account.
 ```
 
 Requires JDK 17+. CI runs build + lint + tests on every push.
+
+### The widget on a real phone
+
+`GithubWidgetOnDeviceTest` is the one test that needs a device. It hosts the GitHub widget
+itself, sends it the largest heatmap it can draw, and measures the platform's bitmap cap on
+that display. To run it on an Android 17 Pixel 11 in Firebase Test Lab:
+
+```bash
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+gcloud firebase test android run --type instrumentation \
+  --app app/build/outputs/apk/debug/app-debug.apk \
+  --test app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+  --device model=cubs,version=37 \
+  --test-targets "class io.github.meko123456.habitstreaks.widget.GithubWidgetOnDeviceTest"
+```
+
+On a phone that size expect two passes and one skip. The widget cannot reach the cap on a
+large panel, so the test that pushes it over has nothing to push (#21). That test needs a
+panel under about 2 megapixels, which is what the `widget-on-android-17` CI job's small-phone
+emulator is for.
 
 ## License
 

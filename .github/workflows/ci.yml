@@ -56,7 +56,10 @@ jobs:
     # SurfaceFlinger to the same gralloc abort (RegionSamplingThread -> GraphicBuffer::lock), so
     # the emulator, not the widget, decides most runs. It still runs on every push and its results
     # step still fails it on 0 tests, so a red job here means "no Android 17 evidence yet", never
-    # a pass. HabitStreaks #21 stays open until this job shows 3 tests, 0 failed, 0 skipped.
+    # a pass. HabitStreaks #21 was closed on a real Android 17 phone instead (a Pixel 11 in
+    # Firebase Test Lab): two tests passed, and the over-cap one skipped itself, because on a
+    # 1080x2424 panel the widget cannot reach the cap at all. The over-cap path needs a panel this
+    # small, so this job is still the only place it can run on Android 17.
     continue-on-error: true
     #
     # What was tried, so nobody repeats it: on the hosted runner every Android 17 x86_64 image
@@ -66,7 +69,7 @@ jobs:
     # (37.3.2) emulators. The abort is in SurfaceFlinger's region sampling, which is how the
     # navigation bar tints its gesture handle, so the emulator now boots as a phone with hardware
     # keys (qemu.hw.mainkeys=1): no navigation bar, nothing asking for samples. If that holds,
-    # this job is the Android 17 evidence #21 needs; if not, it waits on a fixed system image.
+    # this job shows the one thing the phone could not; if not, it waits on a fixed system image.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
