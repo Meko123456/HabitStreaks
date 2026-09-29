@@ -58,6 +58,15 @@ jobs:
     # step still fails it on 0 tests, so a red job here means "no Android 17 evidence yet", never
     # a pass. HabitStreaks #21 stays open until this job shows 3 tests, 0 failed, 0 skipped.
     continue-on-error: true
+    #
+    # Which software renderer, is the open question: under swiftshader_indirect SurfaceFlinger
+    # keeps aborting on "!rcEnc->featureInfo()->hasReadColorBufferDma", and turning GL DMA off did
+    # not change that. So the renderers this emulator offers run side by side.
+    name: widget-on-android-17 (gpu ${{ matrix.gpu }})
+    strategy:
+      fail-fast: false
+      matrix:
+        gpu: [swangle, lavapipe, software]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -86,9 +95,7 @@ jobs:
           target: google_apis_playstore
           arch: x86_64
           profile: small_phone
-          # GL DMA off: the aborts assert that the host does not offer reading colour buffers by
-          # DMA, and these features are the likeliest reason it does.
-          emulator-options: -no-window -gpu swiftshader_indirect -feature -GLDMA -feature -GLDMA2 -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
+          emulator-options: -no-window -gpu ${{ matrix.gpu }} -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
           ram-size: 4096M
           cores: 4
           # One command per line, as the runner executes them. Answering once is not enough: on
@@ -130,7 +137,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-17-widget-report
+          name: android-17-widget-report-${{ matrix.gpu }}
           path: |
             app/build/reports/androidTests/connected/
             app/build/outputs/androidTest-results/
