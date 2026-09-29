@@ -59,16 +59,12 @@ jobs:
     # a pass. HabitStreaks #21 stays open until this job shows 3 tests, 0 failed, 0 skipped.
     continue-on-error: true
     #
-    # Which emulator, is the open question. SurfaceFlinger keeps aborting on
-    # "!rcEnc->featureInfo()->hasReadColorBufferDma" under every renderer the stable emulator
-    # offers (swiftshader_indirect, swangle, lavapipe, software), and with GL DMA off: the host
-    # advertises a capability the image's gralloc asserts is absent, which is a version mismatch
-    # between the two. So the image runs under the beta and canary emulator builds instead.
-    name: widget-on-android-17 (emulator ${{ matrix.emulator }})
-    strategy:
-      fail-fast: false
-      matrix:
-        emulator: ['16416033', '16433917'] # beta, canary on 2026-09-29
+    # What was tried, so nobody repeats it: on the hosted runner every Android 17 x86_64 image
+    # loses SurfaceFlinger to "!rcEnc->featureInfo()->hasReadColorBufferDma" — 37.0 google_apis,
+    # 37.0 Play Store and 37.1 16 KB — under every renderer (swiftshader_indirect, swangle,
+    # lavapipe, software), with GL DMA off, and on the stable (37.1.11), beta (37.2.11) and canary
+    # (37.3.2) emulators. Nothing on this side switches it off; it waits on a fixed system image.
+    # One configuration stays, so the job turns green by itself the day one ships.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -97,7 +93,6 @@ jobs:
           target: google_apis_playstore
           arch: x86_64
           profile: small_phone
-          emulator-build: ${{ matrix.emulator }}
           emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
           ram-size: 4096M
           cores: 4
@@ -140,7 +135,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-17-widget-report-${{ matrix.emulator }}
+          name: android-17-widget-report
           path: |
             app/build/reports/androidTests/connected/
             app/build/outputs/androidTest-results/
