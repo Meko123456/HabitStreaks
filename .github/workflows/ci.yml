@@ -63,8 +63,10 @@ jobs:
     # loses SurfaceFlinger to "!rcEnc->featureInfo()->hasReadColorBufferDma" — 37.0 google_apis,
     # 37.0 Play Store and 37.1 16 KB — under every renderer (swiftshader_indirect, swangle,
     # lavapipe, software), with GL DMA off, and on the stable (37.1.11), beta (37.2.11) and canary
-    # (37.3.2) emulators. Nothing on this side switches it off; it waits on a fixed system image.
-    # One configuration stays, so the job turns green by itself the day one ships.
+    # (37.3.2) emulators. The abort is in SurfaceFlinger's region sampling, which is how the
+    # navigation bar tints its gesture handle, so the emulator now boots as a phone with hardware
+    # keys (qemu.hw.mainkeys=1): no navigation bar, nothing asking for samples. If that holds,
+    # this job is the Android 17 evidence #21 needs; if not, it waits on a fixed system image.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -93,7 +95,7 @@ jobs:
           target: google_apis_playstore
           arch: x86_64
           profile: small_phone
-          emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
+          emulator-options: -no-window -gpu swangle -prop qemu.hw.mainkeys=1 -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
           ram-size: 4096M
           cores: 4
           # One command per line, as the runner executes them. Answering once is not enough: on
