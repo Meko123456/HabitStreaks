@@ -59,14 +59,16 @@ jobs:
     # a pass. HabitStreaks #21 stays open until this job shows 3 tests, 0 failed, 0 skipped.
     continue-on-error: true
     #
-    # Which software renderer, is the open question: under swiftshader_indirect SurfaceFlinger
-    # keeps aborting on "!rcEnc->featureInfo()->hasReadColorBufferDma", and turning GL DMA off did
-    # not change that. So the renderers this emulator offers run side by side.
-    name: widget-on-android-17 (gpu ${{ matrix.gpu }})
+    # Which emulator, is the open question. SurfaceFlinger keeps aborting on
+    # "!rcEnc->featureInfo()->hasReadColorBufferDma" under every renderer the stable emulator
+    # offers (swiftshader_indirect, swangle, lavapipe, software), and with GL DMA off: the host
+    # advertises a capability the image's gralloc asserts is absent, which is a version mismatch
+    # between the two. So the image runs under the beta and canary emulator builds instead.
+    name: widget-on-android-17 (emulator ${{ matrix.emulator }})
     strategy:
       fail-fast: false
       matrix:
-        gpu: [swangle, lavapipe, software]
+        emulator: ['16416033', '16433917'] # beta, canary on 2026-09-29
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -95,7 +97,8 @@ jobs:
           target: google_apis_playstore
           arch: x86_64
           profile: small_phone
-          emulator-options: -no-window -gpu ${{ matrix.gpu }} -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
+          emulator-build: ${{ matrix.emulator }}
+          emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim -logcat 'AndroidRuntime:E libc:F DEBUG:F Watchdog:W SystemServer:E TestRunner:E GithubWidgetOnDevice:W *:S'
           ram-size: 4096M
           cores: 4
           # One command per line, as the runner executes them. Answering once is not enough: on
@@ -137,7 +140,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-17-widget-report-${{ matrix.gpu }}
+          name: android-17-widget-report-${{ matrix.emulator }}
           path: |
             app/build/reports/androidTests/connected/
             app/build/outputs/androidTest-results/
