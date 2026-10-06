@@ -41,7 +41,7 @@ fun GithubSettingsDialog(
                             "${state.contributions.total} contributions in the last year.",
                     )
                     is GithubState.Error -> Text(
-                        "Connection error: ${state.message}",
+                        "Couldn't connect: ${state.message}",
                         color = MaterialTheme.colorScheme.error,
                     )
                     GithubState.Loading -> Text("Connecting…")
