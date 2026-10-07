@@ -47,7 +47,7 @@ reminders/  WorkManager daily reminder worker
 
 The streak math and the day arithmetic are deliberately isolated from Android — pure Kotlin
 functions over `LocalDate.toEpochDay()` sets and `ZonedDateTime`, unit-tested without a device
-(19 tests in `domain/`, 37 in the repo, and three more that need a device — below).
+(19 tests in `domain/`, 44 in the repo, and three more that need a device — below).
 
 ## Connecting your GitHub account
 

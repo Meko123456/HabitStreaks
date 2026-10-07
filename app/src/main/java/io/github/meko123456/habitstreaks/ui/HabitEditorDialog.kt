@@ -13,6 +13,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.text.BreakIterator
+
+/**
+ * What the emoji field keeps of what was typed: the last whole character as a person sees it (one
+ * grapheme cluster), so picking a new emoji replaces the old one.
+ *
+ * Whole matters because many emoji are several code points: 🧑‍💻 is 🧑, a zero-width joiner and
+ * 💻, five UTF-16 chars. The field used to keep the first four chars, which cut it after half of
+ * 💻 and saved "🧑" plus a broken character as the habit's emoji.
+ */
+internal fun lastGrapheme(typed: String): String {
+    val text = typed.trim()
+    if (text.isEmpty()) return ""
+    val clusters = BreakIterator.getCharacterInstance()
+    clusters.setText(text)
+    val end = clusters.last()
+    return text.substring(clusters.previous(), end)
+}
 
 @Composable
 fun HabitEditorDialog(
@@ -39,7 +57,7 @@ fun HabitEditorDialog(
                 )
                 OutlinedTextField(
                     value = emoji,
-                    onValueChange = { emoji = it.take(4) },
+                    onValueChange = { emoji = lastGrapheme(it) },
                     label = { Text("Emoji (optional)") },
                     singleLine = true,
                     modifier = Modifier.padding(top = 8.dp),
