@@ -38,16 +38,16 @@ Ktor Client (GitHub GraphQL) · kotlinx-serialization · Glance · WorkManager
 
 ```
 ui/         Compose screens + HabitsViewModel (StateFlow, reactive Room queries)
-domain/     StreakEngine + HeatmapLevel — pure Kotlin, fully unit tested
+domain/     StreakEngine + DayClock — pure Kotlin, fully unit tested
 data/       Room entities/DAO/database
 data/github TokenStore (Keystore AES-GCM) + GraphQL client + DTO mapping
-widget/     Glance widgets + shared HeatmapBitmap renderer
+widget/     Glance widgets, shared heatmap renderer, midnight refresh
 reminders/  WorkManager daily reminder worker
 ```
 
 The streak math and the day arithmetic are deliberately isolated from Android — pure Kotlin
 functions over `LocalDate.toEpochDay()` sets and `ZonedDateTime`, unit-tested without a device
-(19 tests in `domain/`, 44 in the repo, and three more that need a device — below).
+(22 tests in `domain/`, 47 in the repo, and three more that need a device — below).
 
 ## Connecting your GitHub account
 
