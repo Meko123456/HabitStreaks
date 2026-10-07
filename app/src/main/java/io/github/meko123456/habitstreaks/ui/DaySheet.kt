@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -158,6 +159,9 @@ fun PickDayDialog(
     }
     val state = rememberDatePickerState(
         initialSelectedDateMillis = today * MILLIS_PER_DAY,
+        // Up to this year. The default range runs to 2100, so the year menu offered every year
+        // after this one, and each opened onto months where no day could be picked.
+        yearRange = DatePickerDefaults.YearRange.first..LocalDate.ofEpochDay(today).year,
         selectableDates = selectable,
     )
     DatePickerDialog(
