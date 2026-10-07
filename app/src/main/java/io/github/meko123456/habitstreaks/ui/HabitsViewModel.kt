@@ -16,7 +16,6 @@ import io.github.meko123456.habitstreaks.data.github.TokenStore
 import io.github.meko123456.habitstreaks.domain.DayClock
 import io.github.meko123456.habitstreaks.domain.StreakEngine
 import io.github.meko123456.habitstreaks.widget.HabitsWidget
-import androidx.glance.appwidget.updateAll
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +53,7 @@ class HabitsViewModel(
 
     /** Keep home-screen widgets in sync after any data mutation. */
     private suspend fun syncWidget() {
-        app?.let { HabitsWidget().updateAll(it) }
+        app?.let { HabitsWidget.refreshAll(it) }
     }
 
     private val _github = MutableStateFlow<GithubState>(GithubState.NotConnected)
