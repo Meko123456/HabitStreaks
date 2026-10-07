@@ -18,15 +18,12 @@ import io.github.meko123456.habitstreaks.domain.StreakEngine
 import io.github.meko123456.habitstreaks.widget.HabitsWidget
 import androidx.glance.appwidget.updateAll
 import java.time.LocalDate
-import java.time.ZonedDateTime
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -95,25 +92,27 @@ class HabitsViewModel(
         }
     }
 
+    // A wait for midnight can outlast a night of deep sleep (see DayClock.todayTicks), so the
+    // screen also asks for the date again whenever it comes back.
+    private val dayRechecks = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     /**
      * Today, re-emitted when the day actually rolls over rather than when the database happens to
      * change. Everything that means "today" reads this, so the list, the heatmap and the check-off
      * button can never disagree about which day they are on.
      */
     val today: StateFlow<Long> =
-        flow {
-            while (true) {
-                val now = ZonedDateTime.now()
-                emit(DayClock.epochDay(now))
-                delay(DayClock.millisUntilNextMidnight(now))
-            }
-        }
-            .distinctUntilChanged()
+        DayClock.todayTicks(dayRechecks)
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(5_000),
                 LocalDate.now().toEpochDay(),
             )
+
+    /** Reads the date again. The home screen calls this each time it resumes. */
+    fun recheckDay() {
+        dayRechecks.tryEmit(Unit)
+    }
 
     val items: StateFlow<List<HabitItem>> =
         combine(dao.observeHabits(), dao.observeAllCompletions(), today) { habits, completions, today ->

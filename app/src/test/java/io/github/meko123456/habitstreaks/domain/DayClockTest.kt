@@ -4,11 +4,20 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** When today ends — the arithmetic a streak app cannot get wrong. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DayClockTest {
 
     private val tbilisi = ZoneId.of("Asia/Tbilisi")
@@ -54,5 +63,55 @@ class DayClockTest {
     fun `a day that gains an hour is twenty five hours long`() {
         // And back again on 2026-10-25.
         assertEquals(25 * 60 * 60 * 1000L, DayClock.millisUntilNextMidnight(at(london, 2026, 10, 25, 0)))
+    }
+
+    // --- todayTicks: which day the screen is on ---------------------------------------------------
+    // The wait for midnight runs in virtual time here, which stands still unless the test moves it.
+    // That is what uptime does while a phone is in deep sleep, as the wall clock moves on.
+
+    private fun october(day: Int) = LocalDate.of(2026, 10, day).toEpochDay()
+
+    @Test
+    fun `a recheck reads the date again when the wait for midnight has not run out`() = runTest {
+        var now = at(tbilisi, 2026, 10, 7, 23)
+        val rechecks = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val days = mutableListOf<Long>()
+        val ticks = launch { DayClock.todayTicks(rechecks) { now }.toList(days) }
+        runCurrent()
+
+        now = at(tbilisi, 2026, 10, 8, 7, 30) // a night asleep: the clock moved, the wait did not
+        runCurrent()
+        assertEquals("the wait alone still says yesterday", listOf(october(7)), days)
+
+        rechecks.emit(Unit) // the screen comes back
+        runCurrent()
+        assertEquals(listOf(october(7), october(8)), days)
+        ticks.cancel()
+    }
+
+    @Test
+    fun `midnight still arrives on its own while the phone stays awake`() = runTest {
+        var now = at(tbilisi, 2026, 10, 7, 23)
+        val days = mutableListOf<Long>()
+        val ticks = launch { DayClock.todayTicks(emptyFlow()) { now }.toList(days) }
+        runCurrent()
+
+        now = at(tbilisi, 2026, 10, 8, 0)
+        advanceTimeBy(60 * 60 * 1000L + 1)
+        assertEquals(listOf(october(7), october(8)), days)
+        ticks.cancel()
+    }
+
+    @Test
+    fun `a recheck on the same day sends nothing new`() = runTest {
+        val now = at(tbilisi, 2026, 10, 7, 9)
+        val rechecks = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val days = mutableListOf<Long>()
+        val ticks = launch { DayClock.todayTicks(rechecks) { now }.toList(days) }
+        runCurrent()
+        rechecks.emit(Unit)
+        runCurrent()
+        assertEquals(listOf(october(7)), days)
+        ticks.cancel()
     }
 }

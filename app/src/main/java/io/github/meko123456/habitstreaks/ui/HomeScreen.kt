@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.meko123456.habitstreaks.data.Habit
 import io.github.meko123456.heatmap.ContributionHeatmap
@@ -51,6 +52,10 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     // From the ViewModel, not remember { now() }: frozen at first composition, this made an app left
     // open overnight keep drawing yesterday's heatmap and yesterday's check marks.
     val today by viewModel.today.collectAsState()
+    LifecycleResumeEffect(viewModel) {
+        viewModel.recheckDay()
+        onPauseOrDispose { }
+    }
     var habitDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var githubDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var pickingFor by rememberSaveable { mutableStateOf<String?>(null) } // "habits" | "github"
