@@ -20,6 +20,10 @@
         </activity>
 
         <receiver
+            android:name=".widget.MidnightRefreshReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".widget.HabitsWidgetReceiver"
             android:exported="false"
             android:label="@string/app_name">

@@ -44,12 +44,20 @@ import java.time.LocalDate
 
 class HabitsWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = HabitsWidget()
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        MidnightRefresh.cancel(context)
+    }
 }
 
 /** Home-screen widget: today's habits with tap-to-check, straight into Room. */
 class HabitsWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // Here as well as in refreshAll: after a reboot, which clears alarms, the system's own
+        // update of the widget is the first chance to set it again.
+        MidnightRefresh.schedule(context)
         val first = TodayHabits.load(context)
         provideContent {
             // Read here, again for every version refreshAll writes. While a widget's session is
@@ -65,13 +73,15 @@ class HabitsWidget : GlanceAppWidget() {
     companion object {
         val VERSION = intPreferencesKey("version")
 
-        /** Redraws every placed habits widget from the database. */
+        /** Redraws every placed habits widget from the database, and keeps the midnight alarm set. */
         suspend fun refreshAll(context: Context) {
             val widget = HabitsWidget()
-            GlanceAppWidgetManager(context).getGlanceIds(HabitsWidget::class.java).forEach { id ->
+            val ids = GlanceAppWidgetManager(context).getGlanceIds(HabitsWidget::class.java)
+            ids.forEach { id ->
                 updateAppWidgetState(context, id) { it[VERSION] = (it[VERSION] ?: 0) + 1 }
                 widget.update(context, id)
             }
+            if (ids.isNotEmpty()) MidnightRefresh.schedule(context)
         }
     }
 }
