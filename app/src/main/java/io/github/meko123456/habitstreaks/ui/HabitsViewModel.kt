@@ -1,6 +1,9 @@
 package io.github.meko123456.habitstreaks.ui
 
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -58,6 +61,12 @@ class HabitsViewModel(
 
     private val _github = MutableStateFlow<GithubState>(GithubState.NotConnected)
     val github: StateFlow<GithubState> = _github.asStateFlow()
+
+    /**
+     * The token being typed into the GitHub dialog. Held here so a rotation keeps it, and only in
+     * memory: saved instance state would hand it to the system.
+     */
+    var tokenDraft by mutableStateOf("")
 
     init {
         refreshGithub()

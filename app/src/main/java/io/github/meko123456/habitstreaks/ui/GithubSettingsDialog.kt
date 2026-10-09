@@ -8,10 +8,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -24,12 +20,12 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GithubSettingsDialog(
     state: GithubState,
+    token: String,
+    onTokenChange: (String) -> Unit,
     onConnect: (token: String) -> Unit,
     onDisconnect: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var token by remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("GitHub") },
@@ -53,7 +49,7 @@ fun GithubSettingsDialog(
                 if (state !is GithubState.Ready) {
                     OutlinedTextField(
                         value = token,
-                        onValueChange = { token = it },
+                        onValueChange = onTokenChange,
                         label = { Text("Personal access token") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),

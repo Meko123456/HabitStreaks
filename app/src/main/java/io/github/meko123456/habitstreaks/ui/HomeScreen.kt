@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.meko123456.habitstreaks.data.Habit
 import io.github.meko123456.heatmap.ContributionHeatmap
 import io.github.meko123456.heatmap.HeatmapLayout
 
@@ -46,9 +45,11 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     val items by viewModel.items.collectAsState()
     val dayCounts by viewModel.dayCounts.collectAsState()
     val github by viewModel.github.collectAsState()
-    var showCreate by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Habit?>(null) }
+    var showCreate by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    // The id, not the Habit: a saved-state Bundle can hold a Long, and the habit comes from the list.
+    var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val editing = items.firstOrNull { it.habit.id == editingId }?.habit
     // From the ViewModel, not remember { now() }: frozen at first composition, this made an app left
     // open overnight keep drawing yesterday's heatmap and yesterday's check marks.
     val today by viewModel.today.collectAsState()
@@ -107,7 +108,7 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                     HabitCard(
                         item = item,
                         onToggleToday = { viewModel.toggleToday(item) },
-                        onEdit = { editing = item.habit },
+                        onEdit = { editingId = item.habit.id },
                     )
                 }
             }
@@ -141,9 +142,14 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
     if (showSettings) {
         GithubSettingsDialog(
             state = github,
+            token = viewModel.tokenDraft,
+            onTokenChange = { viewModel.tokenDraft = it },
             onConnect = { viewModel.connectGithub(it) },
             onDisconnect = { viewModel.disconnectGithub() },
-            onDismiss = { showSettings = false },
+            onDismiss = {
+                viewModel.tokenDraft = ""
+                showSettings = false
+            },
         )
     }
 
@@ -163,14 +169,14 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
             title = "Edit habit",
             initialName = habit.name,
             initialEmoji = habit.emoji,
-            onDismiss = { editing = null },
+            onDismiss = { editingId = null },
             onConfirm = { name, emoji ->
                 viewModel.renameHabit(habit, name, emoji)
-                editing = null
+                editingId = null
             },
             onDelete = {
                 viewModel.deleteHabit(habit)
-                editing = null
+                editingId = null
             },
         )
     }
