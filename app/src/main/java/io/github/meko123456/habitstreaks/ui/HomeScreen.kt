@@ -83,7 +83,9 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                // 88dp at the bottom: the FAB's 56 and its margins. With 16, the add button sat on the
+                // last habit's check, so ticking that habit opened "New habit" instead.
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 (github as? GithubState.Ready)?.let { ready ->
