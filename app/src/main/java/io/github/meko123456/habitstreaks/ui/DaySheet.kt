@@ -102,13 +102,16 @@ private fun DayHabitRow(habit: Habit, done: Boolean, onToggle: () -> Unit) {
     }
 }
 
-/** The GitHub contribution count for one day, with a link to that day on github.com. */
+/**
+ * The GitHub contribution count for one day, with a link to that day on github.com. [count] is null
+ * for a day before the fetched year: not known here, though GitHub still has it.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GithubDaySheet(
     epochDay: Long,
     login: String,
-    count: Int,
+    count: Int?,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -124,6 +127,7 @@ fun GithubDaySheet(
             )
             Text(
                 text = when (count) {
+                    null -> "Not fetched"
                     0 -> "No contributions"
                     1 -> "1 contribution"
                     else -> "$count contributions"
@@ -131,6 +135,14 @@ fun GithubDaySheet(
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(vertical = 12.dp),
             )
+            if (count == null) {
+                Text(
+                    text = "HabitStreaks fetches only the last year of contributions. GitHub has this day.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = {
                     val url = "https://github.com/$login?tab=overview&from=$date&to=$date"

@@ -34,7 +34,12 @@ internal fun demoYear(today: LocalDate): GithubContributions {
             }
         }
     }
-    return GithubContributions(login = "demo", total = counts.values.sum(), countsByDay = counts)
+    return GithubContributions(
+        login = "demo",
+        total = counts.values.sum(),
+        countsByDay = counts,
+        firstDay = today.minusDays(DAYS - 1).toEpochDay(),
+    )
 }
 
 /** 53 weeks: the most the widget ever draws, so the widest widget has no empty columns. */

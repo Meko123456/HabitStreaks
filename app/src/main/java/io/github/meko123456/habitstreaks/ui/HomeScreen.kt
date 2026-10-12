@@ -125,7 +125,7 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
             GithubDaySheet(
                 epochDay = day,
                 login = c.login,
-                count = c.countsByDay[day] ?: 0,
+                count = c.countOn(day),
                 onDismiss = { githubDay = null },
             )
         }

@@ -48,6 +48,20 @@ class GithubContributionsTest {
     }
 
     @Test
+    fun `a day before the calendar starts is unknown, not a day without contributions`() {
+        val viewer = json.decodeFromString<GraphQLResponse>(sample).data!!.viewer!!
+        val result = viewer.toGithubContributions()
+
+        assertEquals(LocalDate.parse("2026-08-03").toEpochDay(), result.firstDay)
+        assertNull(result.countOn(LocalDate.parse("2026-08-02").toEpochDay()))
+        assertEquals(25, result.countOn(LocalDate.parse("2026-08-03").toEpochDay()))
+        assertEquals(0, result.countOn(LocalDate.parse("2026-08-05").toEpochDay()))
+
+        val empty = Viewer("Meko123456", ContributionsCollection(ContributionCalendar(0, emptyList())))
+        assertNull(empty.toGithubContributions().countOn(LocalDate.parse("2026-08-05").toEpochDay()))
+    }
+
+    @Test
     fun `parses GraphQL errors`() {
         val errorJson = """{ "errors": [{ "message": "Bad credentials" }] }"""
         val response = json.decodeFromString<GraphQLResponse>(errorJson)

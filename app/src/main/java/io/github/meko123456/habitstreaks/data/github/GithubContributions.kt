@@ -34,15 +34,27 @@ data class GithubContributions(
     val login: String,
     val total: Int,
     val countsByDay: Map<Long, Int>,
-)
+    /** The calendar's first day. GitHub sends the last year, so nothing earlier is known. */
+    val firstDay: Long,
+) {
+    /**
+     * Contributions on [epochDay], or null before [firstDay]. Zero-count days are left out of
+     * [countsByDay], so reading a missing day as 0 called every day before the fetched year one
+     * with no contributions.
+     */
+    fun countOn(epochDay: Long): Int? = if (epochDay < firstDay) null else countsByDay[epochDay] ?: 0
+}
 
 fun Viewer.toGithubContributions(): GithubContributions {
     val calendar = contributionsCollection.contributionCalendar
+    var firstDay = Long.MAX_VALUE // an empty calendar knows no day at all
     val counts = buildMap {
         for (week in calendar.weeks) {
             for (day in week.contributionDays) {
+                val epochDay = LocalDate.parse(day.date).toEpochDay()
+                firstDay = minOf(firstDay, epochDay)
                 if (day.contributionCount > 0) {
-                    put(LocalDate.parse(day.date).toEpochDay(), day.contributionCount)
+                    put(epochDay, day.contributionCount)
                 }
             }
         }
@@ -51,5 +63,6 @@ fun Viewer.toGithubContributions(): GithubContributions {
         login = login,
         total = calendar.totalContributions,
         countsByDay = counts,
+        firstDay = firstDay,
     )
 }
