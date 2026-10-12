@@ -78,7 +78,8 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
             }
         },
     ) { innerPadding ->
-        if (items.isEmpty()) {
+        val githubReady = github as? GithubState.Ready
+        if (items.isEmpty() && githubReady == null) {
             EmptyState(Modifier.padding(innerPadding))
         } else {
             LazyColumn(
@@ -88,7 +89,7 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                (github as? GithubState.Ready)?.let { ready ->
+                githubReady?.let { ready ->
                     item(key = "github") {
                         GithubCard(
                             contributions = ready.contributions,
@@ -98,13 +99,19 @@ fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.
                         )
                     }
                 }
-                item(key = "heatmap") {
-                    ActivityCard(
-                        dayCounts = dayCounts,
-                        today = today,
-                        onDayClick = { habitDay = it },
-                        onPickDay = { pickingFor = "habits" },
-                    )
+                // GitHub connected before the first habit: its card shows above the empty state. The
+                // empty state used to replace the whole list, so connecting seemed to do nothing.
+                if (items.isEmpty()) {
+                    item(key = "empty") { EmptyState() }
+                } else {
+                    item(key = "heatmap") {
+                        ActivityCard(
+                            dayCounts = dayCounts,
+                            today = today,
+                            onDayClick = { habitDay = it },
+                            onPickDay = { pickingFor = "habits" },
+                        )
+                    }
                 }
                 items(items, key = { it.habit.id }) { item ->
                     HabitCard(
