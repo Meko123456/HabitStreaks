@@ -112,17 +112,23 @@ private fun Content(habits: List<Habit>, doneIds: Set<Long>) {
                     .clickable(actionStartActivity<MainActivity>()),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // One line whatever the text size. The count keeps its width and the name takes
+                // what is left: at 2x text the name took the whole row, the count wrapped one letter
+                // to a line beside it, and the header grew so tall the habits fell out of the widget.
                 Text(
                     text = "HabitStreaks",
                     style = TextStyle(
                         fontWeight = FontWeight.Bold,
                         color = GlanceTheme.colors.onSurface,
                     ),
+                    maxLines = 1,
+                    modifier = GlanceModifier.defaultWeight(),
                 )
                 Spacer(GlanceModifier.width(8.dp))
                 Text(
                     text = "${doneIds.size}/${habits.size} today",
                     style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                    maxLines = 1,
                 )
             }
             if (habits.isEmpty()) {
