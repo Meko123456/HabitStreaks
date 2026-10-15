@@ -43,6 +43,20 @@ fun HabitEditorDialog(
 ) {
     var name by rememberSaveable { mutableStateOf(initialName) }
     var emoji by rememberSaveable { mutableStateOf(initialEmoji) }
+    // Delete stands where Cancel usually does, and took the habit and every day checked off with
+    // one tap. It asks first now; Cancel goes back to the editor.
+    var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+
+    if (onDelete != null && confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text("Delete “$initialName”?") },
+            text = { Text("Its streak and every day checked off go with it. A deleted habit can't be recovered.") },
+            confirmButton = { TextButton(onClick = onDelete) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -72,7 +86,7 @@ fun HabitEditorDialog(
         },
         dismissButton = {
             if (onDelete != null) {
-                TextButton(onClick = onDelete) { Text("Delete") }
+                TextButton(onClick = { confirmingDelete = true }) { Text("Delete") }
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
