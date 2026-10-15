@@ -5,6 +5,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import java.net.UnknownHostException
 import java.time.LocalDate
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -31,6 +32,19 @@ class GithubClientTest {
         assertEquals(
             "GitHub didn't accept the token (Bad credentials). Check it hasn't expired and has the read:user scope.",
             failure?.message,
+        )
+    }
+
+    @Test
+    fun `no connection is said in words, not as the platform's resolver error`() = runBlocking {
+        val offline = GithubClient(
+            GithubClient.httpClient(
+                MockEngine { throw UnknownHostException("Unable to resolve host \"api.github.com\": No address associated with hostname") },
+            ),
+        )
+        assertEquals(
+            "GitHub can't be reached. Check the phone is online and try again.",
+            offline.fetchContributions("ghp_any").exceptionOrNull()?.message,
         )
     }
 

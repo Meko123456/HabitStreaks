@@ -14,6 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import java.io.IOException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -28,10 +29,16 @@ class GithubClient(private val http: HttpClient = defaultHttpClient()) {
     private data class RestError(val message: String? = null)
 
     suspend fun fetchContributions(token: String): Result<GithubContributions> = runCatching {
-        val reply = http.post("https://api.github.com/graphql") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(GraphQLRequest(CONTRIBUTIONS_QUERY))
+        val reply = try {
+            http.post("https://api.github.com/graphql") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(GraphQLRequest(CONTRIBUTIONS_QUERY))
+            }
+        } catch (e: IOException) {
+            // Offline, a failed DNS lookup or a timeout. The dialog showed the platform's own words,
+            // "Unable to resolve host "api.github.com": No address associated with hostname".
+            throw IOException("GitHub can't be reached. Check the phone is online and try again.", e)
         }
         // A token GitHub won't take comes back as HTTP 401 with {"message": "Bad credentials"}.
         // Decoded as a GraphQL response, that has neither data nor errors, and read as "empty
