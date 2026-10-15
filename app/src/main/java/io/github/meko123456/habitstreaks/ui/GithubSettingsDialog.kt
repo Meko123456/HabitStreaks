@@ -2,6 +2,7 @@ package io.github.meko123456.habitstreaks.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -10,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -57,7 +59,13 @@ fun GithubSettingsDialog(
                         visualTransformation = PasswordVisualTransformation(),
                         // Hidden on screen, but typed as plain text the keyboard could learn it and
                         // offer it as a suggestion elsewhere. A password field is kept out of that.
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Done,
+                        ),
+                        // Done connects, as the Connect button does.
+                        keyboardActions = KeyboardActions(onDone = { if (token.isNotBlank()) onConnect(token) }),
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 }

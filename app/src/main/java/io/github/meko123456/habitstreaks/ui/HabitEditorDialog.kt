@@ -2,6 +2,8 @@ package io.github.meko123456.habitstreaks.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -12,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import java.text.BreakIterator
 
@@ -63,17 +66,21 @@ fun HabitEditorDialog(
         title = { Text(title) },
         text = {
             Column {
+                // The keyboard's action key goes from the name to the emoji, then saves as Save does.
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 )
                 OutlinedTextField(
                     value = emoji,
                     onValueChange = { emoji = lastGrapheme(it) },
                     label = { Text("Emoji (optional)") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (name.isNotBlank()) onConfirm(name, emoji) }),
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
