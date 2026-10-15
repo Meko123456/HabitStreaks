@@ -48,6 +48,9 @@ internal fun relativeDay(epochDay: Long, today: Long): String = when (today - ep
     else -> "${today - epochDay} days ago"
 }
 
+/** "1 contribution", "12 contributions". The GitHub card said "1 contributions in the last year". */
+internal fun contributionCount(count: Int): String = if (count == 1) "1 contribution" else "$count contributions"
+
 /**
  * Every habit with a checkbox for whether it was done on [epochDay]. Toggling writes the
  * completion for that day, so a forgotten check-off can be fixed after the fact.
@@ -129,8 +132,7 @@ fun GithubDaySheet(
                 text = when (count) {
                     null -> "Not fetched"
                     0 -> "No contributions"
-                    1 -> "1 contribution"
-                    else -> "$count contributions"
+                    else -> contributionCount(count)
                 },
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(vertical = 12.dp),

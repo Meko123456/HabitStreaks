@@ -34,7 +34,7 @@ fun GithubSettingsDialog(
                 when (state) {
                     is GithubState.Ready -> Text(
                         "Connected as @${state.contributions.login} · " +
-                            "${state.contributions.total} contributions in the last year.",
+                            "${contributionCount(state.contributions.total)} in the last year.",
                     )
                     is GithubState.Error -> Text(
                         "Couldn't connect: ${state.message}",

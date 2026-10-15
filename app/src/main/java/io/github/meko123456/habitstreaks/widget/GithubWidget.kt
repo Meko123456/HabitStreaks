@@ -34,6 +34,7 @@ import io.github.meko123456.habitstreaks.MainActivity
 import io.github.meko123456.habitstreaks.data.github.GithubClient
 import io.github.meko123456.habitstreaks.data.github.GithubContributions
 import io.github.meko123456.habitstreaks.data.github.TokenStore
+import io.github.meko123456.habitstreaks.ui.contributionCount
 import io.github.meko123456.heatmap.HeatmapBitmap
 import java.time.LocalDate
 
@@ -154,7 +155,7 @@ open class GithubWidget(
                     maxCount = WidgetHeatmap.visibleMax(contributions.countsByDay, today.toEpochDay(), spec.weeks),
                 ),
             ),
-            contentDescription = "$todayCount contributions today, ${contributions.total} in the last year",
+            contentDescription = "${contributionCount(todayCount)} today, ${contributions.total} in the last year",
             // Fit keeps the cells square; defaultWeight is what actually hands the image the rest of
             // the column. fillMaxSize looked equivalent and left it with no height at all.
             contentScale = ContentScale.Fit,
@@ -170,8 +171,7 @@ open class GithubWidget(
 
         private fun Int.contributions(): String = when (this) {
             0 -> "no contributions yet"
-            1 -> "1 contribution"
-            else -> "$this contributions"
+            else -> contributionCount(this)
         }
     }
 }
