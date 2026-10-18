@@ -10,17 +10,15 @@ import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.github.meko123456.habitstreaks.MainActivity
 import io.github.meko123456.habitstreaks.R
 import io.github.meko123456.habitstreaks.data.HabitDatabase
-import java.time.Duration
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 /**
@@ -34,20 +32,28 @@ class ReminderWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        remindIfAnythingIsOpen()
+        // The next one is aimed from the clock, not from this run: a run Android held back an
+        // hour must not move tomorrow's reminder an hour too.
+        enqueue(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
+        return Result.success()
+    }
+
+    private suspend fun remindIfAnythingIsOpen() {
         val context = applicationContext
         val dao = HabitDatabase.get(context).habitDao()
         val habits = dao.habitsOnce()
-        if (habits.isEmpty()) return Result.success()
+        if (habits.isEmpty()) return
 
         val done = dao.completedHabitIdsOn(LocalDate.now().toEpochDay()).size
         val open = habits.size - done
-        if (open <= 0) return Result.success()
+        if (open <= 0) return
 
         val granted = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) return Result.success()
+        if (!granted) return
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
@@ -74,30 +80,38 @@ class ReminderWorker(
             .setAutoCancel(true)
             .build()
         manager.notify(NOTIFICATION_ID, notification)
-        return Result.success()
     }
 
     companion object {
         private const val CHANNEL_ID = "daily_reminders"
         private const val NOTIFICATION_ID = 1001
-        private const val WORK_NAME = "daily_reminder"
+        private const val WORK_NAME = "evening_reminder"
+
+        /** The 24-hour periodic work this replaced, cancelled wherever it is still scheduled. */
+        private const val PERIODIC_WORK_NAME = "daily_reminder"
         private const val REMINDER_HOUR = 20
 
-        /** Enqueue the daily check, first run at the next [REMINDER_HOUR]:00. */
+        /**
+         * Aims the reminder at the next [REMINDER_HOUR]:00, replacing whatever was set before.
+         *
+         * It used to be 24-hour periodic work whose first run was aimed at 20:00. Periodic work
+         * counts each period from the last run rather than from the clock, so every run Android
+         * held back moved all the later ones with it, and a new time zone or a change of summer
+         * time moved them for good: on the test emulator the evening nudge had drifted to 11:29 in
+         * the morning. A one-time run aimed at the next 20:00, set again after every run and at
+         * every launch, can't drift.
+         */
         fun schedule(context: Context) {
-            val now = LocalDateTime.now()
-            var next = now.toLocalDate().atTime(LocalTime.of(REMINDER_HOUR, 0))
-            if (!next.isAfter(now)) next = next.plusDays(1)
-            val initialDelay = Duration.between(now, next)
+            WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_WORK_NAME)
+            enqueue(context, ExistingWorkPolicy.REPLACE)
+        }
 
-            val request = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
-                .setInitialDelay(initialDelay.toMinutes(), TimeUnit.MINUTES)
+        private fun enqueue(context: Context, policy: ExistingWorkPolicy) {
+            val delay = ReminderTime.untilNext(ZonedDateTime.now(), REMINDER_HOUR)
+            val request = OneTimeWorkRequestBuilder<ReminderWorker>()
+                .setInitialDelay(delay.toMillis(), TimeUnit.MILLISECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                request,
-            )
+            WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, policy, request)
         }
     }
 }
