@@ -39,6 +39,12 @@ android {
     }
 }
 
+// Room writes each version's schema here so a future migration can be written against the real
+// previous schema and reviewed in the diff, rather than reconstructed from memory.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.androidx.activity.compose)
