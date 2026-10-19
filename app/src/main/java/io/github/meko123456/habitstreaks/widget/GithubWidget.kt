@@ -8,6 +8,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
@@ -36,7 +37,9 @@ import io.github.meko123456.habitstreaks.data.github.GithubContributions
 import io.github.meko123456.habitstreaks.data.github.TokenStore
 import io.github.meko123456.habitstreaks.ui.contributionCount
 import io.github.meko123456.heatmap.HeatmapBitmap
+import java.text.NumberFormat
 import java.time.LocalDate
+import java.util.Locale
 
 class GithubWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GithubWidget()
@@ -127,13 +130,14 @@ open class GithubWidget(
         val size = LocalSize.current
         val today = LocalDate.now()
         val todayCount = contributions.countsByDay[today.toEpochDay()] ?: 0
+        val locale = LocalContext.current.resources.configuration.locales[0]
 
         // One Text, not a Row of three. The first attempt put the date, the count and the handle in
         // a Row and gave the count a weight to push the handle right; on the device only the date
         // survived - the weighted child measured to nothing and the rest went with it. A single
         // string cannot collapse.
         Text(
-            text = "${today.dayOfMonth.pad()}/${today.monthValue.pad()}  ${todayCount.contributions()}",
+            text = "${today.dayOfMonth.pad()}/${today.monthValue.pad()}  ${todayCount.contributions(locale)}",
             style = TextStyle(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -155,7 +159,8 @@ open class GithubWidget(
                     maxCount = WidgetHeatmap.visibleMax(contributions.countsByDay, today.toEpochDay(), spec.weeks),
                 ),
             ),
-            contentDescription = "${contributionCount(todayCount)} today, ${contributions.total} in the last year",
+            contentDescription = "${contributionCount(todayCount, locale)} today, " +
+                "${NumberFormat.getIntegerInstance(locale).format(contributions.total)} in the last year",
             // Fit keeps the cells square; defaultWeight is what actually hands the image the rest of
             // the column. fillMaxSize looked equivalent and left it with no height at all.
             contentScale = ContentScale.Fit,
@@ -169,9 +174,9 @@ open class GithubWidget(
 
         private fun Int.pad(): String = if (this < 10) "0$this" else "$this"
 
-        private fun Int.contributions(): String = when (this) {
+        private fun Int.contributions(locale: Locale): String = when (this) {
             0 -> "no contributions yet"
-            else -> contributionCount(this)
+            else -> contributionCount(this, locale)
         }
     }
 }

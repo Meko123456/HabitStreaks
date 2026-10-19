@@ -33,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -208,7 +209,7 @@ private fun GithubCard(
         Column(Modifier.padding(16.dp)) {
             CardHeader(
                 title = "GitHub · @${contributions.login}",
-                subtitle = "${contributionCount(contributions.total)} in the last year",
+                subtitle = "${contributionCount(contributions.total, LocalConfiguration.current.locales[0])} in the last year",
                 onPickDay = onPickDay,
             )
             ContributionHeatmap(

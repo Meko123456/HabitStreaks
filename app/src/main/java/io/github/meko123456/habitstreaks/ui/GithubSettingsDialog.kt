@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -38,7 +39,7 @@ fun GithubSettingsDialog(
                 when (state) {
                     is GithubState.Ready -> Text(
                         "Connected as @${state.contributions.login} · " +
-                            "${contributionCount(state.contributions.total)} in the last year.",
+                            "${contributionCount(state.contributions.total, LocalConfiguration.current.locales[0])} in the last year.",
                     )
                     is GithubState.Error -> Text(
                         "Couldn't connect: ${state.message}",

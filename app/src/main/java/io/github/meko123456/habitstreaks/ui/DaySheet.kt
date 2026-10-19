@@ -25,11 +25,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.meko123456.habitstreaks.data.Habit
+import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -48,8 +50,12 @@ internal fun relativeDay(epochDay: Long, today: Long): String = when (today - ep
     else -> "${today - epochDay} days ago"
 }
 
-/** "1 contribution", "12 contributions". The GitHub card said "1 contributions in the last year". */
-internal fun contributionCount(count: Int): String = if (count == 1) "1 contribution" else "$count contributions"
+/**
+ * "1 contribution", "1,873 contributions", grouped as the phone's language groups digits. The GitHub
+ * card said "1 contributions in the last year", and a year's total came out as bare digits.
+ */
+internal fun contributionCount(count: Int, locale: Locale): String =
+    if (count == 1) "1 contribution" else "${NumberFormat.getIntegerInstance(locale).format(count)} contributions"
 
 /**
  * Every habit with a checkbox for whether it was done on [epochDay]. Toggling writes the
@@ -132,7 +138,7 @@ fun GithubDaySheet(
                 text = when (count) {
                     null -> "Not fetched"
                     0 -> "No contributions"
-                    else -> contributionCount(count)
+                    else -> contributionCount(count, LocalConfiguration.current.locales[0])
                 },
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(vertical = 12.dp),
