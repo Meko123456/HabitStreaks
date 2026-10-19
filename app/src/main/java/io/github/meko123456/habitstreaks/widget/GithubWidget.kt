@@ -1,6 +1,7 @@
 package io.github.meko123456.habitstreaks.widget
 
 import android.content.Context
+import android.text.format.DateFormat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -39,6 +40,7 @@ import io.github.meko123456.habitstreaks.ui.contributionCount
 import io.github.meko123456.heatmap.HeatmapBitmap
 import java.text.NumberFormat
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 class GithubWidgetReceiver : GlanceAppWidgetReceiver() {
@@ -131,13 +133,17 @@ open class GithubWidget(
         val today = LocalDate.now()
         val todayCount = contributions.countsByDay[today.toEpochDay()] ?: 0
         val locale = LocalContext.current.resources.configuration.locales[0]
+        // Day and month in the order and with the mark the phone's language uses: "10/19" in
+        // American English, "19/10" in British, "19.10" in Georgian. It was always "19/10", which
+        // a phone set to American English reads as the tenth day of a nineteenth month.
+        val dayMonth = today.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "ddMM"), locale))
 
         // One Text, not a Row of three. The first attempt put the date, the count and the handle in
         // a Row and gave the count a weight to push the handle right; on the device only the date
         // survived - the weighted child measured to nothing and the rest went with it. A single
         // string cannot collapse.
         Text(
-            text = "${today.dayOfMonth.pad()}/${today.monthValue.pad()}  ${todayCount.contributions(locale)}",
+            text = "$dayMonth  ${todayCount.contributions(locale)}",
             style = TextStyle(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -171,8 +177,6 @@ open class GithubWidget(
     internal companion object {
         /** On every side, inside the rounded background; the heatmap is drawn for what is left. */
         const val PADDING = 12f
-
-        private fun Int.pad(): String = if (this < 10) "0$this" else "$this"
 
         private fun Int.contributions(locale: Locale): String = when (this) {
             0 -> "no contributions yet"
