@@ -56,13 +56,7 @@ class ReminderWorker(
         if (!granted) return
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                "Daily reminders",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ),
-        )
+        ensureChannel(context)
 
         val openApp = PendingIntent.getActivity(
             context,
@@ -102,8 +96,22 @@ class ReminderWorker(
          * every launch, can't drift.
          */
         fun schedule(context: Context) {
+            ensureChannel(context)
             WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_WORK_NAME)
             enqueue(context, ExistingWorkPolicy.REPLACE)
+        }
+
+        /**
+         * The reminders' channel, with a line saying what it sends, for the app's notification
+         * settings. It was made by the first reminder, with no description, so until an evening
+         * with a habit left open Settings listed no category to look at or turn off.
+         */
+        private fun ensureChannel(context: Context) {
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Daily reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "An evening nudge, on days when a habit is still unchecked."
+                },
+            )
         }
 
         private fun enqueue(context: Context, policy: ExistingWorkPolicy) {
