@@ -8,6 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import io.github.meko123456.habitstreaks.reminders.ReminderWorker
 import io.github.meko123456.habitstreaks.widget.WidgetRefreshWorker
@@ -15,6 +18,9 @@ import io.github.meko123456.habitstreaks.ui.HomeScreen
 import io.github.meko123456.habitstreaks.ui.theme.HabitStreaksTheme
 
 class MainActivity : ComponentActivity() {
+
+    /** Set by the launcher's Add a habit shortcut (res/xml/shortcuts.xml) until the dialog is open. */
+    private var createRequested by mutableStateOf(false)
 
     private val requestNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional */ }
@@ -28,9 +34,10 @@ class MainActivity : ComponentActivity() {
         // never have had a refresh scheduled. KEEP makes repeating it harmless.
         WidgetRefreshWorker.schedule(this)
         askForNotificationsIfNeeded()
+        if (savedInstanceState == null && intent?.action == ACTION_ADD_HABIT) createRequested = true
         setContent {
             HabitStreaksTheme {
-                HomeScreen()
+                HomeScreen(openCreate = createRequested, onCreateOpened = { createRequested = false })
             }
         }
     }
@@ -42,5 +49,9 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
         if (!granted) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    companion object {
+        const val ACTION_ADD_HABIT = "io.github.meko123456.habitstreaks.action.ADD_HABIT"
     }
 }

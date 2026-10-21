@@ -4,4 +4,6 @@
     <string name="widget_description">Check off today\'s habits from the home screen</string>
     <string name="github_widget_description">Your GitHub contribution graph on the home screen</string>
     <string name="github_widget_label">GitHub Graph</string>
+    <string name="shortcut_add_habit_short">Add habit</string>
+    <string name="shortcut_add_habit_long">Add a habit</string>
 </resources>

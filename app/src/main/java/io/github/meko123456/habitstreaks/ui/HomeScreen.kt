@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,11 +43,21 @@ import io.github.meko123456.heatmap.HeatmapLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.Factory)) {
+fun HomeScreen(
+    viewModel: HabitsViewModel = viewModel(factory = HabitsViewModel.Factory),
+    openCreate: Boolean = false,
+    onCreateOpened: () -> Unit = {},
+) {
     val items by viewModel.items.collectAsState()
     val dayCounts by viewModel.dayCounts.collectAsState()
     val github by viewModel.github.collectAsState()
     var showCreate by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(openCreate) {
+        if (openCreate) {
+            showCreate = true
+            onCreateOpened()
+        }
+    }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     // The id, not the Habit: a saved-state Bundle can hold a Long, and the habit comes from the list.
     var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
