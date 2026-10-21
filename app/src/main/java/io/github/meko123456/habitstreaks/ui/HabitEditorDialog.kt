@@ -9,11 +9,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import java.text.BreakIterator
@@ -49,6 +53,7 @@ fun HabitEditorDialog(
     // Delete stands where Cancel usually does, and took the habit and every day checked off with
     // one tap. It asks first now; Cancel goes back to the editor.
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+    val nameField = remember { FocusRequester() }
 
     if (onDelete != null && confirmingDelete) {
         AlertDialog(
@@ -73,6 +78,7 @@ fun HabitEditorDialog(
                     label = { Text("Name") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    modifier = Modifier.focusRequester(nameField),
                 )
                 OutlinedTextField(
                     value = emoji,
@@ -84,6 +90,9 @@ fun HabitEditorDialog(
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+            // A new habit (from + or the Add a habit shortcut) starts with its name, so that field has
+            // the keyboard at once; editing one opens on what's there, with no keyboard over it.
+            LaunchedEffect(Unit) { if (initialName.isEmpty()) nameField.requestFocus() }
         },
         confirmButton = {
             TextButton(
