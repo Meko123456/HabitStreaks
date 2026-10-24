@@ -17,7 +17,10 @@ object WidgetPreviews {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.getLong(KEY_PUBLISHED_FOR, 0L) == installed) return
         val manager = GlanceAppWidgetManager(context)
-        val results = listOf(manager.setWidgetPreviews(HabitsWidgetReceiver::class))
+        val results = listOf(
+            manager.setWidgetPreviews(HabitsWidgetReceiver::class),
+            manager.setWidgetPreviews(GithubWidgetReceiver::class),
+        )
         // Rate-limited: try again the next time the app starts.
         if (results.all { it == GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS }) {
             prefs.edit().putLong(KEY_PUBLISHED_FOR, installed).apply()

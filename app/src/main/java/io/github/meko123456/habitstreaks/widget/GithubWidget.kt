@@ -93,31 +93,48 @@ open class GithubWidget(
         val result = loadContributions(context)
 
         provideContent {
-            GlanceTheme {
-                Column(
-                    modifier = GlanceModifier
-                        .fillMaxSize()
-                        .background(GlanceTheme.colors.widgetBackground)
-                        .cornerRadius(16.dp)
-                        .padding(PADDING.dp)
-                        .clickable(actionStartActivity<MainActivity>()),
-                ) {
-                    when {
-                        result == null -> Message("Connect GitHub in HabitStreaks to see your contribution graph")
-                        result.isFailure -> {
-                            Message("Couldn't load contributions")
-                            Text(
-                                text = "↻ Refresh",
-                                style = TextStyle(color = GlanceTheme.colors.primary),
-                                modifier = GlanceModifier
-                                    .padding(top = 8.dp)
-                                    .clickable(actionRunCallback<RefreshGithubWidgetAction>()),
-                            )
-                        }
-                        else -> Graph(result.getOrThrow())
+            Card {
+                when {
+                    result == null -> Message("Connect GitHub in HabitStreaks to see your contribution graph")
+                    result.isFailure -> {
+                        Message("Couldn't load contributions")
+                        Text(
+                            text = "↻ Refresh",
+                            style = TextStyle(color = GlanceTheme.colors.primary),
+                            modifier = GlanceModifier
+                                .padding(top = 8.dp)
+                                .clickable(actionRunCallback<RefreshGithubWidgetAction>()),
+                        )
                     }
+                    else -> Graph(result.getOrThrow())
                 }
             }
+        }
+    }
+
+    /**
+     * What the widget picker shows on Android 15 and later: the graph drawn from a made-up year
+     * instead of the app icon in a box. Never the user's own contributions, since a preview is
+     * shown to whoever opens the picker and needs no token. [WidgetPreviews] hands it to the
+     * system.
+     */
+    final override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        provideContent { Card { Graph(sampleYear(LocalDate.now())) } }
+    }
+
+    /** The rounded, themed background everything in the widget sits on. */
+    @androidx.compose.runtime.Composable
+    private fun Card(content: @androidx.compose.runtime.Composable ColumnScope.() -> Unit) {
+        GlanceTheme {
+            Column(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .background(GlanceTheme.colors.widgetBackground)
+                    .cornerRadius(16.dp)
+                    .padding(PADDING.dp)
+                    .clickable(actionStartActivity<MainActivity>()),
+                content = content,
+            )
         }
     }
 
