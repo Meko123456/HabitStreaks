@@ -70,6 +70,20 @@ class HabitsWidget : GlanceAppWidget() {
         }
     }
 
+    /**
+     * What the widget picker shows on Android 15 and later: the widget itself with three made-up
+     * habits, two ticked, instead of the app icon in a box. Never the user's own habits, since a
+     * preview is shown to whoever opens the picker. [WidgetPreviews] hands it to the system.
+     */
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        val habits = listOf(
+            Habit(id = 1, name = "Read 20 pages", emoji = "📚", createdAtEpochDay = 0),
+            Habit(id = 2, name = "Walk 30 minutes", emoji = "🚶", createdAtEpochDay = 0),
+            Habit(id = 3, name = "Drink water", emoji = "💧", createdAtEpochDay = 0),
+        )
+        provideContent { Content(habits, doneIds = setOf(1L, 3L)) }
+    }
+
     companion object {
         val VERSION = intPreferencesKey("version")
 

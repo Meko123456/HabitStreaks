@@ -12,10 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import io.github.meko123456.habitstreaks.reminders.ReminderWorker
+import io.github.meko123456.habitstreaks.widget.WidgetPreviews
 import io.github.meko123456.habitstreaks.widget.WidgetRefreshWorker
 import io.github.meko123456.habitstreaks.ui.HomeScreen
 import io.github.meko123456.habitstreaks.ui.theme.HabitStreaksTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -28,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        lifecycleScope.launch { WidgetPreviews.publish(applicationContext) }
         ReminderWorker.schedule(this)
         // Also here, not only from the widget receiver's onEnabled: that fires when the *first*
         // widget is added, so a widget already on the home screen before this code shipped would
