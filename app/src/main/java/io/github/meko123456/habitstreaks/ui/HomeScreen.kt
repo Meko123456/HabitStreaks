@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -35,10 +37,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.meko123456.heatmap.ContributionHeatmap
+import io.github.meko123456.habitstreaks.reminders.ReminderNotice
+import io.github.meko123456.habitstreaks.reminders.ReminderWorker
 import io.github.meko123456.heatmap.HeatmapLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,8 +70,19 @@ fun HomeScreen(
     // From the ViewModel, not remember { now() }: frozen at first composition, this made an app left
     // open overnight keep drawing yesterday's heatmap and yesterday's check marks.
     val today by viewModel.today.collectAsState()
+    val context = LocalContext.current
+    val listState = rememberLazyListState()
+    var remindersOff by remember { mutableStateOf(ReminderNotice.shouldShow(context)) }
     LifecycleResumeEffect(viewModel) {
         viewModel.recheckDay()
+        // On every return, not once: the way to turn them back on is in Settings.
+        val off = ReminderNotice.shouldShow(context)
+        // The card goes in above the first item, and a list keeps the item it had at the top in
+        // place, so the card came in scrolled out of sight. A list at the top stays at the top.
+        if (off && !remindersOff && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+            listState.requestScrollToItem(0)
+        }
+        remindersOff = off
         onPauseOrDispose { }
     }
     var habitDay by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -96,11 +112,24 @@ fun HomeScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
+                state = listState,
                 // 88dp at the bottom: the FAB's 56 and its margins. With 16, the add button sat on the
                 // last habit's check, so ticking that habit opened "New habit" instead.
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Only with a habit to be reminded of.
+                if (remindersOff && items.isNotEmpty()) {
+                    item(key = "reminders-off") {
+                        RemindersOffCard(
+                            onTurnOn = { context.startActivity(ReminderWorker.settingsIntent(context)) },
+                            onNotNow = {
+                                ReminderNotice.dismiss(context)
+                                remindersOff = false
+                            },
+                        )
+                    }
+                }
                 githubReady?.let { ready ->
                     item(key = "github") {
                         GithubCard(
@@ -273,6 +302,31 @@ private fun ActivityCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun RemindersOffCard(onTurnOn: () -> Unit, onNotNow: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+    ) {
+        Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 8.dp)) {
+            Text("Evening reminders are off", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Notifications for daily reminders are turned off, so there's no nudge on " +
+                    "evenings when a habit is still open.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp, end = 8.dp),
+            )
+            Row(Modifier.align(Alignment.End)) {
+                TextButton(onClick = onNotNow) { Text("Not now") }
+                TextButton(onClick = onTurnOn) { Text("Turn on") }
+            }
         }
     }
 }

@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -112,6 +114,25 @@ class ReminderWorker(
                     description = "An evening nudge, on days when a habit is still unchecked."
                 },
             )
+        }
+
+        /**
+         * Whether an evening reminder would show: notifications on for the app (from Android 13 that
+         * is the notification permission) and the reminders' channel not switched off.
+         */
+        fun canPost(context: Context): Boolean {
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+            val channel = context.getSystemService(NotificationManager::class.java).getNotificationChannel(CHANNEL_ID)
+            return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
+        }
+
+        /** Where to turn them back on: the reminders' own switch when only that one is off. */
+        fun settingsIntent(context: Context): Intent {
+            val appOn = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            val action = if (appOn) Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS else Settings.ACTION_APP_NOTIFICATION_SETTINGS
+            return Intent(action)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .apply { if (appOn) putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID) }
         }
 
         private fun enqueue(context: Context, policy: ExistingWorkPolicy) {
