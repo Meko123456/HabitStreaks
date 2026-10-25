@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the widget picker shows on Android 12 to 14: the GitHub widget drawing the made-up year
+     GithubWidget.providePreview draws for Android 15 and later. Never the user's contributions.
+     drawable-nodpi/github_widget_preview_graph.png is that year as the widget renders it,
+     16 weeks to 24 Oct 2026, rendered by HeatmapBitmap.render on a device. Its empty days are
+     see-through, as the widget's are, so it sits on the light and the dark background alike. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_background"
+    android:orientation="vertical"
+    android:padding="12dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="4 contributions today"
+        android:textColor="@color/widget_preview_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/github_widget_preview_graph" />
+</LinearLayout>
