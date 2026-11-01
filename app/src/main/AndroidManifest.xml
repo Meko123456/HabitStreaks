@@ -4,7 +4,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Backup is Auto Backup. The agent only hears that a restore finished, to set the evening
+         reminder again (RestoreAgent). fullBackupOnly is what keeps it Auto Backup: without it,
+         Android would back up through the agent, which saves nothing. -->
     <application
+        android:backupAgent=".reminders.RestoreAgent"
+        android:fullBackupOnly="true"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:supportsRtl="false"
@@ -23,7 +28,7 @@
         </activity>
 
         <!-- The evening reminder is aimed at the instant of the next 20:00, which a new time zone
-             or a changed clock moves; this aims it again. -->
+             or a changed clock moves; this aims it again. RestoreAgent's alarm comes here too. -->
         <receiver
             android:name=".reminders.ReminderClockReceiver"
             android:exported="false">

@@ -25,7 +25,8 @@ the coding habit, it doesn't ask you to self-report: it fetches your actual squa
 - 📱 **Two Glance home-screen widgets:**
   - *HabitStreaks* — today's habits with tap-to-check straight into the database
   - *GitHub Graph* — your live GitHub contribution heatmap on the home screen
-- ⏰ Evening reminder if habits are still open (WorkManager, Android 13+ permission flow)
+- ⏰ Evening reminder if habits are still open (WorkManager, Android 13+ permission flow), set
+  again after a restore to a new phone without the app being opened
 - 🔐 GitHub token stored encrypted — AES-256-GCM key in the Android Keystore
 - 📴 Offline-first: habits and completions live in Room
 
