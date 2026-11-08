@@ -11,11 +11,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+
+/** The dialog's status line, for tests. */
+internal const val GITHUB_STATUS_TAG = "github-status"
 
 /**
  * Connect / disconnect the GitHub account. The token is a classic PAT with
@@ -36,21 +44,26 @@ fun GithubSettingsDialog(
         title = { Text("GitHub") },
         text = {
             Column {
-                when (state) {
-                    is GithubState.Ready -> Text(
-                        "Connected as @${state.contributions.login} · " +
-                            "${contributionCount(state.contributions.total, LocalConfiguration.current.locales[0])} in the last year.",
-                    )
-                    is GithubState.Error -> Text(
-                        "Couldn't connect: ${state.message}",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    GithubState.Loading -> Text("Connecting…")
-                    GithubState.NotConnected -> Text(
-                        "Paste a personal access token (read:user scope) to show " +
-                            "your real contribution graph. Stored encrypted on-device.",
-                    )
-                }
+                // One line that changes its words as a connection is tried, a polite live region:
+                // TalkBack reads "Connecting…" and then the outcome, where the user is, instead of
+                // leaving them on a Connect button that has just turned into Disconnect. It stays
+                // one Text so the change is to its words: a new node appearing isn't announced.
+                Text(
+                    text = when (state) {
+                        is GithubState.Ready ->
+                            "Connected as @${state.contributions.login} · " +
+                                "${contributionCount(state.contributions.total, LocalConfiguration.current.locales[0])} in the last year."
+                        is GithubState.Error -> "Couldn't connect: ${state.message}"
+                        GithubState.Loading -> "Connecting…"
+                        GithubState.NotConnected ->
+                            "Paste a personal access token (read:user scope) to show " +
+                                "your real contribution graph. Stored encrypted on-device."
+                    },
+                    color = if (state is GithubState.Error) MaterialTheme.colorScheme.error else Color.Unspecified,
+                    modifier = Modifier
+                        .testTag(GITHUB_STATUS_TAG)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
                 if (state !is GithubState.Ready) {
                     OutlinedTextField(
                         value = token,

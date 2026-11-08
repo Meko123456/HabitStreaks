@@ -69,9 +69,17 @@ written to your account.
 
 Requires JDK 17+. CI runs build + lint + tests on every push.
 
+### What TalkBack is told
+
+The GitHub dialog's status line is a polite live region: TalkBack reads "Connecting…" and then
+the result or the error, without the user going looking for it. `GithubSettingsDialogTest`
+checks that on a device (an emulator will do). TalkBack's speech can't be observed from a test,
+so it checks what TalkBack acts on: the line is a live region, and each change is a change of
+that same node's words, since a node that newly appears isn't announced.
+
 ### The widget on a real phone
 
-`GithubWidgetOnDeviceTest` is the one test that needs a device. It hosts the GitHub widget
+`GithubWidgetOnDeviceTest` is the other test that needs a device. It hosts the GitHub widget
 itself, sends it the largest heatmap it can draw, and measures the platform's bitmap cap on
 that display. To run it on an Android 17 Pixel 11 in Firebase Test Lab:
 
