@@ -77,5 +77,9 @@ dependencies {
     // Compose UI tests on a device: what TalkBack is told, which a JVM test can't see.
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    // The Compose test library brings Espresso 3.5.0, which looks up InputManager.getInstance by
+    // reflection the first time a test waits for idle. Android 17 removed it, so every Compose
+    // test failed there with NoSuchMethodException. 3.7.0 asks the Context for the InputManager.
+    androidTestImplementation(libs.androidx.test.espresso.core)
     debugImplementation(libs.compose.ui.test.manifest)
 }
