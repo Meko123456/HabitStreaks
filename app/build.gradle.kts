@@ -8,6 +8,8 @@ plugins {
 android {
     namespace = "io.github.meko123456.habitstreaks"
     compileSdk = 37
+    // 37.1: Compose 1.13's libraries declare it as their minimum (checkAarMetadata).
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "io.github.meko123456.habitstreaks"
